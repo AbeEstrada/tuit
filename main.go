@@ -3,11 +3,11 @@ package main
 import (
 	"log"
 
-	"github.com/AbeEstrada/mastty/ui"
+	"github.com/AbeEstrada/mastty/tui"
 )
 
 func main() {
-	app, err := ui.CreateApp()
+	app, err := tui.CreateApp()
 	if err != nil {
 		log.Fatalf("failed to create app: %v", err)
 	}

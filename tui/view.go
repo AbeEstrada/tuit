@@ -1,4 +1,4 @@
-package ui
+package tui
 
 import "git.sr.ht/~rockorager/vaxis"
 
