@@ -88,37 +88,24 @@ func (v *HomeView) loadMoreTimeline() {
 }
 
 func (v *HomeView) Draw(win vaxis.Window) {
-	const (
-		LeftRatio  = 2
-		RightRatio = 3
+	var (
+		leftRatio  = 2
+		rightRatio = 3
 	)
+	if leftRatio <= 0 {
+		leftRatio = 1
+	}
+	if rightRatio <= 0 {
+		leftRatio = 1
+	}
 
 	width, height := win.Size()
 	separatorStyle := vaxis.Style{
 		Foreground: vaxis.IndexColor(0),
 	}
 
-	if LeftRatio <= 0 || RightRatio <= 0 {
-		// Default 1/2
-		leftWin := win.New(0, 1, width/2-1, height)
-		rightWin := win.New(width/2+1, 1, width/2, height)
-
-		v.left.Draw(leftWin, v.focusedView == 0)
-		v.right.Draw(rightWin, v.focusedView == 1, v.left.SelectedStatus())
-
-		for row := 0; row < height-2; row++ {
-			win.SetCell(width/2, row+1, vaxis.Cell{
-				Character: vaxis.Character{
-					Grapheme: "│",
-				},
-				Style: separatorStyle,
-			})
-		}
-		return
-	}
-
-	total := LeftRatio + RightRatio
-	split := width * LeftRatio / total
+	total := leftRatio + rightRatio
+	split := width * leftRatio / total
 
 	leftWin := win.New(0, 1, split, height)
 	rightWidth := max(0, width-split-2)
