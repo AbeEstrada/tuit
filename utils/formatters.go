@@ -18,41 +18,28 @@ func HTMLToPlainText(html string) string {
 }
 
 func WrapText(text string, maxWidth int) []string {
-	var lines []string
-	if maxWidth <= 0 {
+	if maxWidth <= 0 || strings.TrimSpace(text) == "" {
 		return []string{text}
 	}
+
 	words := strings.Fields(text)
+
+	var lines []string
 	var currentLine strings.Builder
-	for _, word := range words {
-		if len(word) > maxWidth {
-			if currentLine.Len() > 0 {
-				lines = append(lines, currentLine.String())
-				currentLine.Reset()
-			}
-			lines = append(lines, word)
-			continue
-		}
-		testLine := currentLine.String()
-		if testLine != "" {
-			testLine += " "
-		}
-		testLine += word
-		if len(testLine) > maxWidth {
-			if currentLine.Len() > 0 {
-				lines = append(lines, currentLine.String())
-				currentLine.Reset()
-			}
+	currentLine.WriteString(words[0])
+
+	for _, word := range words[1:] {
+		if currentLine.Len()+1+len(word) > maxWidth {
+			lines = append(lines, currentLine.String())
+			currentLine.Reset()
 			currentLine.WriteString(word)
 		} else {
-			if currentLine.Len() > 0 {
-				currentLine.WriteString(" ")
-			}
+			currentLine.WriteString(" ")
 			currentLine.WriteString(word)
 		}
 	}
-	if currentLine.Len() > 0 {
-		lines = append(lines, currentLine.String())
-	}
+
+	lines = append(lines, currentLine.String())
+
 	return lines
 }
