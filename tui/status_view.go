@@ -38,7 +38,7 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 		v.statusID = status.ID
 	}
 
-	width, winHeight := win.Size()
+	width, height := win.Size()
 	y := 0
 	displayStatus := status
 
@@ -85,7 +85,7 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 	y = headerStartRow + avatarHeight + 1
 	v.headerH = y
 
-	contentAreaHeight := winHeight - v.headerH
+	contentAreaHeight := height - v.headerH
 	if contentAreaHeight <= 0 {
 		return
 	}
@@ -145,8 +145,8 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 }
 
 func (v *StatusView) HandleKey(key vaxis.Key) {
-	_, winHeight := v.app.vx.Window().Size()
-	contentAreaHeight := winHeight - v.headerH
+	_, height := v.app.vx.Window().Size()
+	contentAreaHeight := height - v.headerH
 
 	if key.Matches('j') {
 		if v.scrollY+contentAreaHeight < v.contentH {
