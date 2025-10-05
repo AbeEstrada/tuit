@@ -112,7 +112,6 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 	if len(displayStatus.MediaAttachments) > 0 {
 		contentY++
 		mediaWidth := width
-		mediaHeight := 10
 
 		for i, media := range displayStatus.MediaAttachments {
 			if i > 0 {
@@ -129,14 +128,28 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 
 			vxImage, cached := utils.ImageCache.Get(imageURL)
 			if cached {
+				_, mediaHeight := vxImage.CellSize()
+
 				if contentY >= v.scrollY && contentY-v.scrollY < contentAreaHeight {
 					imgWin := contentWin.New(0, contentY-v.scrollY, mediaWidth, mediaHeight)
 					vxImage.Draw(imgWin)
 				}
+
+				contentY += mediaHeight
 			} else {
-				utils.ImageCache.LoadAsync(imageURL, mediaWidth, mediaHeight)
+				var calculatedHeight int
+				imageMeta := media.Meta.Original
+
+				if imageMeta.Width > 0 {
+					aspectRatio := float64(imageMeta.Height) / float64(imageMeta.Width)
+					calculatedHeight = int(float64(mediaWidth) * aspectRatio * 0.5)
+					calculatedHeight = max(calculatedHeight, 1)
+				} else {
+					calculatedHeight = 10
+				}
+
+				utils.ImageCache.LoadAsync(imageURL, mediaWidth, calculatedHeight)
 			}
-			contentY += mediaHeight
 		}
 		contentY++
 	}

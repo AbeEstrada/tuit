@@ -6,6 +6,7 @@ import (
 	"image"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"sync"
 
@@ -67,7 +68,14 @@ func (c *GlobalImageCache) LoadAsync(url string, width, height int) {
 			return
 		}
 
-		vxImage.Resize(width, height)
+		originalBounds := img.Bounds()
+		originalWidth, originalHeight := originalBounds.Dx(), originalBounds.Dy()
+
+		scaleFactor := math.Max(float64(width)/float64(originalWidth), float64(height)/float64(originalHeight))
+		scaledWidth := int(float64(originalWidth) * scaleFactor)
+		scaledHeight := int(float64(originalHeight) * scaleFactor)
+
+		vxImage.Resize(scaledWidth, scaledHeight)
 
 		c.mu.Lock()
 		c.cache[url] = vxImage
