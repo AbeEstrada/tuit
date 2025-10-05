@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"log"
 
 	"git.sr.ht/~rockorager/vaxis"
 	"github.com/mattn/go-mastodon"
@@ -34,6 +35,7 @@ func (v *HomeView) SetApp(app *App) {
 
 func (v *HomeView) OnActivate() {
 	go v.loadTimeline()
+	go v.startStreaming()
 	v.app.header.SetText("Home")
 }
 
@@ -85,6 +87,45 @@ func (v *HomeView) loadMoreTimeline() {
 		v.app.vx.PostEvent(vaxis.Redraw{})
 	}
 	v.app.SetLoading(false)
+}
+
+func (v *HomeView) startStreaming() {
+	ctx := context.Background()
+
+	events, err := v.app.client.StreamingUser(ctx)
+	if err != nil {
+		log.Printf("Failed to start streaming: %v", err)
+		return
+	}
+
+	for {
+		select {
+		case event := <-events:
+			v.handleStreamingEvent(event)
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (v *HomeView) handleStreamingEvent(event mastodon.Event) {
+	switch e := event.(type) {
+	case *mastodon.UpdateEvent:
+		v.left.PrependStatuses([]*mastodon.Status{e.Status})
+		v.app.vx.PostEvent(vaxis.Redraw{})
+
+	case *mastodon.NotificationEvent:
+		log.Printf("New Notification [%s] from @%s\n", e.Notification.Type, e.Notification.Account.Acct)
+
+	case *mastodon.DeleteEvent:
+		v.left.DeleteStatus(e.ID)
+
+	case *mastodon.ErrorEvent:
+		log.Printf("Error %v\n", e.Error())
+
+	default:
+		log.Printf("Streaming unhandled event type\n")
+	}
 }
 
 func (v *HomeView) Draw(win vaxis.Window) {
