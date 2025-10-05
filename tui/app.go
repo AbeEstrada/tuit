@@ -7,6 +7,7 @@ import (
 	"git.sr.ht/~rockorager/vaxis"
 	"github.com/AbeEstrada/mastty/auth"
 	"github.com/AbeEstrada/mastty/config"
+	"github.com/AbeEstrada/mastty/utils"
 	"github.com/mattn/go-mastodon"
 )
 
@@ -55,6 +56,8 @@ func CreateApp() (*App, error) {
 	for _, view := range views {
 		view.SetApp(app)
 	}
+
+	utils.InitImageCache(vx)
 
 	return app, nil
 }

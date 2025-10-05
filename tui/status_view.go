@@ -2,9 +2,7 @@ package tui
 
 import (
 	"fmt"
-	"log"
 	"strings"
-	"sync"
 
 	"git.sr.ht/~rockorager/vaxis"
 	"github.com/AbeEstrada/mastty/utils"
@@ -12,53 +10,21 @@ import (
 )
 
 type StatusView struct {
-	app        *App
-	cacheMu    sync.RWMutex
-	imageCache map[string]vaxis.Image
-	loadingImg map[string]bool
-	headerH    int
-	contentH   int
-	scrollY    int
-	statusID   mastodon.ID
+	app      *App
+	headerH  int
+	contentH int
+	scrollY  int
+	statusID mastodon.ID
 }
 
 func CreateStatusView() *StatusView {
 	return &StatusView{
-		imageCache: make(map[string]vaxis.Image),
-		loadingImg: make(map[string]bool),
-		scrollY:    0,
+		scrollY: 0,
 	}
 }
 
 func (v *StatusView) SetApp(app *App) {
 	v.app = app
-}
-
-func (v *StatusView) loadImageAsync(url string, width, height int) {
-	if v.loadingImg[url] {
-		return
-	}
-	v.loadingImg[url] = true
-	go func() {
-		defer func() {
-			delete(v.loadingImg, url)
-		}()
-		img, err := utils.DownloadImage(url)
-		if err != nil {
-			log.Printf("Error downloading image: %v", err)
-			return
-		}
-		vxImage, err := v.app.vx.NewImage(img)
-		if err != nil {
-			log.Printf("Error creating vaxis image: %v", err)
-			return
-		}
-		vxImage.Resize(width, height)
-		v.cacheMu.Lock()
-		v.imageCache[url] = vxImage
-		v.cacheMu.Unlock()
-		v.app.vx.PostEvent(vaxis.Redraw{})
-	}()
 }
 
 func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Status) {
@@ -92,17 +58,14 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 	avatarHeight := 3
 	avatarURL := displayStatus.Account.AvatarStatic
 
-	v.cacheMu.RLock()
-	vxImage, cached := v.imageCache[avatarURL]
-	v.cacheMu.RUnlock()
-
+	vxImage, cached := utils.ImageCache.Get(avatarURL)
 	if cached {
 		if width > avatarWidth {
 			imgWin := win.New(0, headerStartRow, avatarWidth, avatarHeight)
 			vxImage.Draw(imgWin)
 		}
 	} else {
-		v.loadImageAsync(avatarURL, avatarWidth, avatarHeight)
+		utils.ImageCache.LoadAsync(avatarURL, avatarWidth, avatarHeight)
 	}
 
 	metaCol := avatarWidth + 1
@@ -164,18 +127,14 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 				continue
 			}
 
-			v.cacheMu.RLock()
-			vxImage, cached := v.imageCache[imageURL]
-			v.cacheMu.RUnlock()
-
+			vxImage, cached := utils.ImageCache.Get(imageURL)
 			if cached {
-				// Only draw if visible in viewport
 				if contentY >= v.scrollY && contentY-v.scrollY < contentAreaHeight {
 					imgWin := contentWin.New(0, contentY-v.scrollY, mediaWidth, mediaHeight)
 					vxImage.Draw(imgWin)
 				}
 			} else {
-				v.loadImageAsync(imageURL, mediaWidth, mediaHeight)
+				utils.ImageCache.LoadAsync(imageURL, mediaWidth, mediaHeight)
 			}
 			contentY += mediaHeight
 		}
