@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"sync"
 
+	_ "golang.org/x/image/webp"
+
 	"git.sr.ht/~rockorager/vaxis"
 )
 
@@ -91,17 +93,21 @@ func DownloadImage(url string) (image.Image, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get image: bad status code %d", resp.StatusCode)
 	}
+
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
+
 	reader := bytes.NewReader(data)
 	img, _, err := image.Decode(reader)
 	if err != nil {
 		return nil, err
 	}
+
 	return img, nil
 }
