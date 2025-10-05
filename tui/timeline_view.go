@@ -94,6 +94,36 @@ func (v *TimelineView) AppendStatuses(newStatuses []*mastodon.Status) {
 	v.AddStatuses(newStatuses, false)
 }
 
+func (v *TimelineView) DeleteStatus(statusID mastodon.ID) {
+	if len(v.statuses) == 0 {
+		return
+	}
+
+	var deleteIndex int = -1
+	for i, status := range v.statuses {
+		if status.ID == statusID {
+			deleteIndex = i
+			break
+		}
+	}
+
+	if deleteIndex == -1 {
+		return
+	}
+
+	if v.selectedStatus != nil && v.selectedStatus.ID == statusID {
+		if len(v.statuses) == 1 {
+			v.selectedStatus = nil
+		} else if deleteIndex == 0 {
+			v.selectedStatus = v.statuses[1]
+		} else {
+			v.selectedStatus = v.statuses[deleteIndex-1]
+		}
+	}
+
+	v.statuses = append(v.statuses[:deleteIndex], v.statuses[deleteIndex+1:]...)
+}
+
 func (v *TimelineView) SelectedStatus() *mastodon.Status {
 	return v.selectedStatus
 }
