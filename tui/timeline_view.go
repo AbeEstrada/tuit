@@ -174,13 +174,17 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 	case key.Matches('o'):
 		if v.selectedStatus != nil {
 			var url string
-			if v.selectedStatus.Reblog.URL != "" {
+			if v.selectedStatus.Reblog != nil && v.selectedStatus.Reblog.URL != "" {
 				url = v.selectedStatus.Reblog.URL
 			} else if v.selectedStatus.URL != "" {
 				url = v.selectedStatus.URL
 			}
-			if err := utils.OpenBrowser(url); err != nil {
-				log.Printf("Failed to open URL: %v", err)
+			if url != "" {
+				if err := utils.OpenBrowser(url); err != nil {
+					log.Printf("Failed to open URL: %v", err)
+				}
+			} else {
+				log.Printf("No URL available to open")
 			}
 		}
 		return
