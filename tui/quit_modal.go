@@ -20,7 +20,9 @@ func (m *QuitModal) Draw(win vaxis.Window) {
 	y := (height - modalHeight) / 2
 
 	modalWin := win.New(x, y, modalWidth, modalHeight)
-	modalWin.Clear()
+	modalWin.Fill(vaxis.Cell{
+		Character: vaxis.Character{Grapheme: " ", Width: 1},
+	})
 	modalWin = border.All(modalWin, vaxis.Style{
 		Foreground: vaxis.IndexColor(4),
 		Attribute:  vaxis.AttrBold,
