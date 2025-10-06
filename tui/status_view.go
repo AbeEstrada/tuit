@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"strings"
 
 	"git.sr.ht/~rockorager/vaxis"
 	"github.com/AbeEstrada/mastty/utils"
@@ -11,16 +10,11 @@ import (
 
 type StatusView struct {
 	app      *App
-	headerH  int
-	contentH int
-	scrollY  int
 	statusID mastodon.ID
 }
 
 func CreateStatusView() *StatusView {
-	return &StatusView{
-		scrollY: 0,
-	}
+	return &StatusView{}
 }
 
 func (v *StatusView) SetApp(app *App) {
@@ -34,7 +28,6 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 	}
 
 	if v.statusID != status.ID {
-		v.scrollY = 0
 		v.statusID = status.ID
 	}
 
@@ -53,7 +46,7 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 		y += 2
 	}
 
-	headerStartRow := y
+	headerY := y
 	avatarWidth := 6
 	avatarHeight := 3
 	avatarURL := displayStatus.Account.AvatarStatic
@@ -61,16 +54,16 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 	vxImage, cached := utils.ImageCache.Get(avatarURL)
 	if cached {
 		if width > avatarWidth {
-			imgWin := win.New(0, headerStartRow, avatarWidth, avatarHeight)
+			imgWin := win.New(0, headerY, avatarWidth, avatarHeight)
 			vxImage.Draw(imgWin)
 		}
 	} else {
 		utils.ImageCache.LoadAsync(avatarURL, avatarWidth, avatarHeight)
 	}
 
-	metaCol := avatarWidth + 1
-	if width > metaCol {
-		metaWin := win.New(metaCol, headerStartRow, width-metaCol, avatarHeight)
+	metaX := avatarWidth + 1
+	if width > metaX {
+		metaWin := win.New(metaX, headerY, width-metaX, avatarHeight)
 
 		userLine := fmt.Sprintf("%s (@%s)", displayStatus.Account.DisplayName, displayStatus.Account.Acct)
 		metaWin.Println(0, vaxis.Segment{Text: userLine, Style: vaxis.Style{Attribute: vaxis.AttrBold}})
@@ -82,35 +75,20 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 		metaWin.Println(2, vaxis.Segment{Text: statsLine})
 	}
 
-	y = headerStartRow + avatarHeight + 1
-	v.headerH = y
+	y = headerY + avatarHeight + 1
 
-	contentAreaHeight := height - v.headerH
-	if contentAreaHeight <= 0 {
+	contentHeight := height - y
+	if contentHeight <= 0 {
 		return
 	}
 
-	contentWin := win.New(0, v.headerH, width, contentAreaHeight)
-	contentY := 0
+	contentWin := win.New(0, y, width, contentHeight)
+	content := utils.ParseStatus(displayStatus.Content, displayStatus.Tags)
+	_, rows := contentWin.Wrap(content...)
 
-	content := utils.HTMLToPlainText(displayStatus.Content)
-
-	for paragraph := range strings.SplitSeq(content, "\n") {
-		if strings.TrimSpace(paragraph) == "" {
-			contentY++
-			continue
-		}
-		wrapped := utils.WrapText(paragraph, width)
-		for _, line := range wrapped {
-			if contentY >= v.scrollY && contentY-v.scrollY < contentAreaHeight {
-				contentWin.Println(contentY-v.scrollY, vaxis.Segment{Text: line})
-			}
-			contentY++
-		}
-	}
+	contentY := rows
 
 	if len(displayStatus.MediaAttachments) > 0 {
-		contentY++
 		mediaWidth := width
 
 		for i, media := range displayStatus.MediaAttachments {
@@ -130,10 +108,8 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 			if cached {
 				_, mediaHeight := vxImage.CellSize()
 
-				if contentY >= v.scrollY && contentY-v.scrollY < contentAreaHeight {
-					imgWin := contentWin.New(0, contentY-v.scrollY, mediaWidth, mediaHeight)
-					vxImage.Draw(imgWin)
-				}
+				imgWin := contentWin.New(0, contentY, mediaWidth, mediaHeight)
+				vxImage.Draw(imgWin)
 
 				contentY += mediaHeight
 			} else {
@@ -154,22 +130,6 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 		contentY++
 	}
 
-	v.contentH = contentY
 }
 
-func (v *StatusView) HandleKey(key vaxis.Key) {
-	_, height := v.app.vx.Window().Size()
-	contentAreaHeight := height - v.headerH
-
-	if key.Matches('j') {
-		if v.scrollY+contentAreaHeight < v.contentH {
-			v.scrollY++
-			v.app.vx.PostEvent(vaxis.Redraw{})
-		}
-	} else if key.Matches('k') {
-		if v.scrollY > 0 {
-			v.scrollY--
-			v.app.vx.PostEvent(vaxis.Redraw{})
-		}
-	}
-}
+func (v *StatusView) HandleKey(key vaxis.Key) {}
