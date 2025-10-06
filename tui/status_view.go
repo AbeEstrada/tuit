@@ -78,7 +78,7 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 		timeLine := fmt.Sprintf("%s · %s", utils.FormatTimeSince(displayStatus.CreatedAt.Local()), utils.TitleCase(displayStatus.Visibility))
 		metaWin.Println(1, vaxis.Segment{Text: timeLine})
 
-		statsLine := fmt.Sprintf("%d replies · %d boosts · %d favorite", displayStatus.RepliesCount, displayStatus.ReblogsCount, displayStatus.FavouritesCount)
+		statsLine := fmt.Sprintf("%d replies · %d boosts · %d favorites", displayStatus.RepliesCount, displayStatus.ReblogsCount, displayStatus.FavouritesCount)
 		metaWin.Println(2, vaxis.Segment{Text: statsLine})
 	}
 
