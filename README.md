@@ -9,5 +9,5 @@ TUI Mastodon Client
 ## Screenshots
 
 <p align="center">
-  <img width="1358" height="842" alt="Screenshot" src="https://github.com/user-attachments/assets/4d689232-00c3-4c4f-a332-7f76512137c0" />
+  <img width="1972" height="1206" alt="Screenshot" src="https://github.com/user-attachments/assets/51520ed0-a71d-4b9e-862a-ce8d947a3dc7" />
 </p>
