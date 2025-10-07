@@ -94,6 +94,21 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 	if displayStatus.Card != nil {
 		card := displayStatus.Card
 
+		if card.Title != "" && card.URL != "" {
+			contentWin.PrintTruncate(
+				contentY,
+				vaxis.Segment{Text: "↗ "},
+				vaxis.Segment{
+					Text: card.Title,
+					Style: vaxis.Style{
+						Hyperlink:      card.URL,
+						UnderlineStyle: vaxis.UnderlineSingle,
+					},
+				},
+			)
+			contentY += 2
+		}
+
 		if card.Image != "" {
 			imageURL := card.Image
 			mediaWidth := width
