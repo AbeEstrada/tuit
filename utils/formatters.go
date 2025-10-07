@@ -73,6 +73,9 @@ func ParseStatus(content string, tags []mastodon.Tag) []vaxis.Segment {
 		tagEnd += tagStart // Adjust index to be absolute
 		fullTag := content[tagStart : tagEnd+1]
 
+		isBold := strings.EqualFold(fullTag, "<b>")
+		isStrong := strings.EqualFold(fullTag, "<strong>")
+
 		// Check if the tag is an anchor `<a>`
 		if strings.HasPrefix(fullTag, "<a ") {
 			closeTag := "</a>"
@@ -128,6 +131,37 @@ func ParseStatus(content string, tags []mastodon.Tag) []vaxis.Segment {
 			// Move the cursor past the entire processed <a>...</a> block
 			cursor = closeTagStart + len(closeTag)
 
+		} else if isBold || isStrong {
+			var closeTag string
+			if isBold {
+				closeTag = "</b>"
+			} else {
+				closeTag = "</strong>"
+			}
+
+			// Find the closing tag, case-insensitively
+			closeTagStart := strings.Index(
+				strings.ToLower(content[tagEnd+1:]),
+				closeTag,
+			)
+			if closeTagStart == -1 {
+				// Malformed bold/strong tag, skip it
+				cursor = tagEnd + 1
+				continue
+			}
+			closeTagStart += tagEnd + 1
+
+			boldContent := content[tagEnd+1 : closeTagStart]
+			boldText := StripTags(boldContent)
+
+			segments = append(segments, vaxis.Segment{
+				Text: html.UnescapeString(boldText),
+				Style: vaxis.Style{
+					Attribute: vaxis.AttrBold,
+				},
+			})
+			cursor = closeTagStart + len(closeTag)
+
 		} else if strings.EqualFold(fullTag, "<br>") {
 			// Convert <br> and </p> tags into newlines
 			segments = append(segments, vaxis.Segment{Text: "\n"})
@@ -138,6 +172,16 @@ func ParseStatus(content string, tags []mastodon.Tag) []vaxis.Segment {
 		} else {
 			// For any other tag, just skip over it
 			cursor = tagEnd + 1
+		}
+	}
+
+	// Ensure the content ends with a newline
+	if len(segments) > 0 {
+		lastSegment := segments[len(segments)-1]
+		if lastSegment.Text == "\n" {
+			segments = append(segments, vaxis.Segment{Text: "\n"})
+		} else if lastSegment.Text != "\n\n" {
+			segments = append(segments, vaxis.Segment{Text: "\n\n"})
 		}
 	}
 
