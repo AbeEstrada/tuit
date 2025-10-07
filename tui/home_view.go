@@ -21,7 +21,7 @@ func CreateHomeView() *HomeView {
 		focusedView: 0,
 	}
 	leftView := CreateTimelineView()
-	leftView.onLoadMore = v.loadMoreTimeline
+	leftView.onLoadMore = v.loadMoreHomeTimeline
 	v.left = leftView
 
 	return v
@@ -34,58 +34,105 @@ func (v *HomeView) SetApp(app *App) {
 }
 
 func (v *HomeView) OnActivate() {
-	go v.loadTimeline()
+	go v.getHomeTimeline()
 	go v.startStreaming()
 	v.app.header.SetText("Home")
 }
 
-func (v *HomeView) loadTimeline() {
+func (v *HomeView) getHomeTimeline() {
 	v.app.SetLoading(true)
+
 	timeline, err := v.app.client.GetTimelineHome(context.Background(), nil)
 	if err == nil {
-		v.left.SetStatuses(timeline)
+		v.left.AddTimeline(timeline, nil)
 		v.app.vx.PostEvent(vaxis.Redraw{})
 	}
-	v.app.SetLoading(false)
 
+	v.app.SetLoading(false)
 }
 
-func (v *HomeView) reloadTimeline() {
-	v.app.SetLoading(true)
-	var sinceID mastodon.ID
-	if len(v.left.statuses) > 0 {
-		sinceID = v.left.statuses[0].ID
+func (v *HomeView) getStatusContext() {
+	original := v.left.SelectedStatus()
+	if original.Reblog != nil {
+		original = original.Reblog
 	}
 
-	timeline, err := v.app.client.GetTimelineHome(context.Background(), &mastodon.Pagination{
+	v.app.SetLoading(true)
+
+	if original.ID != "" {
+		ctx, err := v.app.client.GetStatusContext(context.Background(), original.ID)
+
+		if err == nil {
+			timeline := make([]*mastodon.Status, 0, len(ctx.Ancestors)+1+len(ctx.Descendants))
+
+			for _, status := range ctx.Ancestors {
+				timeline = append(timeline, status)
+			}
+
+			timeline = append(timeline, original)
+
+			for _, status := range ctx.Descendants {
+				timeline = append(timeline, status)
+			}
+
+			v.left.AddTimeline(timeline, original)
+			v.app.vx.PostEvent(vaxis.Redraw{})
+		}
+	}
+
+	v.app.SetLoading(false)
+}
+
+func (v *HomeView) reloadHomeTimeline() {
+	v.app.SetLoading(true)
+
+	index := 0 // Home
+	timeline := &v.left.timelines[index]
+	statuses := timeline.Statuses
+
+	if len(statuses) == 0 {
+		v.app.SetLoading(false)
+		return
+	}
+
+	sinceID := statuses[0].ID
+
+	newStatuses, err := v.app.client.GetTimelineHome(context.Background(), &mastodon.Pagination{
 		SinceID: sinceID,
 		Limit:   40,
 	})
 
-	if err == nil && len(timeline) > 0 {
-		v.left.PrependStatuses(timeline)
+	if err == nil && len(newStatuses) > 0 {
+		v.left.PrependToTimeline(index, newStatuses)
 		v.app.vx.PostEvent(vaxis.Redraw{})
 	}
 	v.app.SetLoading(false)
 }
 
-func (v *HomeView) loadMoreTimeline() {
+func (v *HomeView) loadMoreHomeTimeline() {
 	v.app.SetLoading(true)
-	var maxID mastodon.ID
-	if len(v.left.statuses) > 0 {
-		lastStatus := v.left.statuses[len(v.left.statuses)-1]
-		maxID = lastStatus.ID
+
+	index := 0 // Home
+	timeline := &v.left.timelines[index]
+	statuses := timeline.Statuses
+
+	if len(statuses) == 0 {
+		v.app.SetLoading(false)
+		return
 	}
 
-	timeline, err := v.app.client.GetTimelineHome(context.Background(), &mastodon.Pagination{
+	maxID := statuses[len(statuses)-1].ID
+
+	newStatuses, err := v.app.client.GetTimelineHome(context.Background(), &mastodon.Pagination{
 		MaxID: maxID,
 		Limit: 20,
 	})
 
-	if err == nil && len(timeline) > 0 {
-		v.left.AppendStatuses(timeline)
+	if err == nil && len(newStatuses) > 0 {
+		v.left.AppendToTimeline(index, newStatuses)
 		v.app.vx.PostEvent(vaxis.Redraw{})
 	}
+
 	v.app.SetLoading(false)
 }
 
@@ -111,14 +158,16 @@ func (v *HomeView) startStreaming() {
 func (v *HomeView) handleStreamingEvent(event mastodon.Event) {
 	switch e := event.(type) {
 	case *mastodon.UpdateEvent:
-		v.left.PrependStatuses([]*mastodon.Status{e.Status})
+		// Add to Home timeline
+		v.left.PrependToTimeline(0, []*mastodon.Status{e.Status})
 		v.app.vx.PostEvent(vaxis.Redraw{})
 
 	case *mastodon.NotificationEvent:
 		log.Printf("New Notification [%s] from @%s\n", e.Notification.Type, e.Notification.Account.Acct)
 
 	case *mastodon.DeleteEvent:
-		v.left.DeleteStatus(e.ID)
+		// Delete status from Home timeline
+		v.left.DeleteFromTimeline(0, e.ID)
 
 	case *mastodon.ErrorEvent:
 		log.Printf("Error %v\n", e.Error())
@@ -173,7 +222,16 @@ func (v *HomeView) HandleKey(key vaxis.Key) {
 	} else if key.Matches('l') {
 		v.focusedView = 1
 	} else if key.Matches('r') && !v.app.loading {
-		go v.reloadTimeline()
+		go v.reloadHomeTimeline()
+	} else if key.Matches('t') && !v.app.loading {
+		go v.getStatusContext()
+	} else if key.Matches('q') {
+		if len(v.left.timelines) <= 1 {
+			v.app.RequestQuit()
+		} else {
+			v.left.RemoveLastTimeline()
+		}
+		return
 	} else {
 		if v.focusedView == 0 {
 			v.left.HandleKey(key)

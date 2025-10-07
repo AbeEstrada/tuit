@@ -10,10 +10,15 @@ import (
 	"github.com/mattn/go-mastodon"
 )
 
+type Timeline struct {
+	Selected *mastodon.Status
+	Statuses []*mastodon.Status
+}
+
 type TimelineView struct {
 	app               *App
-	statuses          []*mastodon.Status
-	selectedStatus    *mastodon.Status
+	timelines         []Timeline
+	index             int
 	scrollOffset      int
 	onSelectionChange func(status *mastodon.Status)
 	onLoadMore        func()
@@ -21,7 +26,8 @@ type TimelineView struct {
 
 func CreateTimelineView() *TimelineView {
 	return &TimelineView{
-		statuses: make([]*mastodon.Status, 0),
+		timelines: []Timeline{},
+		index:     0,
 	}
 }
 
@@ -29,33 +35,47 @@ func (v *TimelineView) SetApp(app *App) {
 	v.app = app
 }
 
-func (v *TimelineView) SetStatuses(statuses []*mastodon.Status) {
-	v.statuses = statuses
-
-	if len(v.statuses) == 0 {
-		v.selectedStatus = nil
+func (v *TimelineView) AddTimeline(statuses []*mastodon.Status, selected *mastodon.Status) {
+	if len(statuses) == 0 {
 		return
 	}
 
-	if v.selectedStatus != nil {
-		for _, s := range v.statuses {
-			if s.ID == v.selectedStatus.ID {
-				v.selectedStatus = s
-				return
-			}
-		}
+	selectedStatus := statuses[0]
+	if selected != nil {
+		selectedStatus = selected
 	}
 
-	v.selectedStatus = v.statuses[0]
+	v.timelines = append(v.timelines, Timeline{
+		Statuses: statuses,
+		Selected: selectedStatus,
+	})
+
+	v.index = len(v.timelines) - 1
 }
 
-func (v *TimelineView) AddStatuses(newStatuses []*mastodon.Status, prepend bool) {
-	if len(newStatuses) == 0 {
+func (v *TimelineView) RemoveLastTimeline() {
+	if len(v.timelines) <= 1 {
 		return
 	}
 
+	v.timelines = v.timelines[:len(v.timelines)-1]
+
+	if v.index >= len(v.timelines) {
+		v.index = len(v.timelines) - 1
+	}
+}
+
+func (v *TimelineView) UpdateTimeline(index int, newStatuses []*mastodon.Status, prepend bool) {
+	if len(newStatuses) == 0 || index < 0 || index >= len(v.timelines) {
+		return
+	}
+
+	timeline := &v.timelines[index]
+	statuses := timeline.Statuses
+	selected := timeline.Selected
+
 	existingIDs := make(map[mastodon.ID]struct{})
-	for _, status := range v.statuses {
+	for _, status := range statuses {
 		existingIDs[status.ID] = struct{}{}
 	}
 
@@ -71,36 +91,42 @@ func (v *TimelineView) AddStatuses(newStatuses []*mastodon.Status, prepend bool)
 	}
 
 	if prepend {
-		v.statuses = append(freshStatuses, v.statuses...)
+		statuses = append(freshStatuses, statuses...)
 	} else {
-		v.statuses = append(v.statuses, freshStatuses...)
+		statuses = append(statuses, freshStatuses...)
 	}
 
-	if v.selectedStatus != nil {
-		for _, s := range v.statuses {
-			if s.ID == v.selectedStatus.ID {
-				v.selectedStatus = s
+	v.timelines[index].Statuses = statuses
+
+	if selected != nil {
+		for _, status := range statuses {
+			if status.ID == selected.ID {
+				v.timelines[index].Selected = status
 				return
 			}
 		}
 	}
 }
 
-func (v *TimelineView) PrependStatuses(newStatuses []*mastodon.Status) {
-	v.AddStatuses(newStatuses, true)
+func (v *TimelineView) PrependToTimeline(index int, newStatuses []*mastodon.Status) {
+	v.UpdateTimeline(index, newStatuses, true)
 }
 
-func (v *TimelineView) AppendStatuses(newStatuses []*mastodon.Status) {
-	v.AddStatuses(newStatuses, false)
+func (v *TimelineView) AppendToTimeline(index int, newStatuses []*mastodon.Status) {
+	v.UpdateTimeline(index, newStatuses, false)
 }
 
-func (v *TimelineView) DeleteStatus(statusID mastodon.ID) {
-	if len(v.statuses) == 0 {
+func (v *TimelineView) DeleteFromTimeline(index int, statusID mastodon.ID) {
+	timeline := &v.timelines[index]
+	statuses := timeline.Statuses
+	selected := timeline.Selected
+
+	if len(statuses) == 0 {
 		return
 	}
 
 	var deleteIndex int = -1
-	for i, status := range v.statuses {
+	for i, status := range statuses {
 		if status.ID == statusID {
 			deleteIndex = i
 			break
@@ -111,34 +137,41 @@ func (v *TimelineView) DeleteStatus(statusID mastodon.ID) {
 		return
 	}
 
-	if v.selectedStatus != nil && v.selectedStatus.ID == statusID {
-		if len(v.statuses) == 1 {
-			v.selectedStatus = nil
+	if selected != nil && selected.ID == statusID {
+		if len(statuses) == 1 {
+			v.timelines[index].Selected = nil
 		} else if deleteIndex == 0 {
-			v.selectedStatus = v.statuses[1]
+			v.timelines[index].Selected = statuses[1]
 		} else {
-			v.selectedStatus = v.statuses[deleteIndex-1]
+			v.timelines[index].Selected = statuses[deleteIndex-1]
 		}
 	}
 
-	v.statuses = append(v.statuses[:deleteIndex], v.statuses[deleteIndex+1:]...)
+	v.timelines[index].Statuses = append(statuses[:deleteIndex], statuses[deleteIndex+1:]...)
 }
 
 func (v *TimelineView) SelectedStatus() *mastodon.Status {
-	return v.selectedStatus
+	if v.index >= len(v.timelines) {
+		return nil
+	}
+	return v.timelines[v.index].Selected
 }
 
 func (v *TimelineView) Draw(win vaxis.Window, focused bool) {
 	width, height := win.Size()
 
-	if len(v.statuses) == 0 {
+	if v.index >= len(v.timelines) || len(v.timelines[v.index].Statuses) == 0 {
 		win.Println(0, vaxis.Segment{Text: "Loading..."})
 		return
 	}
 
+	timeline := &v.timelines[v.index]
+	statuses := timeline.Statuses
+	selected := timeline.Selected
+
 	y := 0
-	for i := v.scrollOffset; i < len(v.statuses) && y < height-1; i++ {
-		status := v.statuses[i]
+	for i := v.scrollOffset; i < len(statuses) && y < height-1; i++ {
+		status := statuses[i]
 		user := "@" + status.Account.Acct
 		createdAt := status.CreatedAt.Local()
 		timestamp := createdAt.Format("2006-01-02 15:04")
@@ -147,7 +180,7 @@ func (v *TimelineView) Draw(win vaxis.Window, focused bool) {
 		}
 
 		selectedStyle := vaxis.Style{}
-		if status == v.selectedStatus && focused {
+		if status == selected && focused {
 			selectedStyle = vaxis.Style{
 				Attribute: vaxis.AttrReverse,
 			}
@@ -169,14 +202,16 @@ func (v *TimelineView) Draw(win vaxis.Window, focused bool) {
 }
 
 func (v *TimelineView) HandleKey(key vaxis.Key) {
-	if len(v.statuses) == 0 {
+	if v.timelines == nil || len(v.timelines[v.index].Statuses) == 0 {
 		return
 	}
 
+	statuses := v.timelines[v.index].Statuses
+	selected := v.timelines[v.index].Selected
 	currentIndex := -1
-	if v.selectedStatus != nil {
-		for i, s := range v.statuses {
-			if s == v.selectedStatus || s.ID == v.selectedStatus.ID {
+	if selected != nil {
+		for i, status := range statuses {
+			if status == selected || status.ID == selected.ID {
 				currentIndex = i
 				break
 			}
@@ -193,21 +228,21 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 		}
 	case key.Matches('k'):
 		if currentIndex == -1 {
-			newIndex = len(v.statuses) - 1
+			newIndex = len(statuses) - 1
 		} else {
 			newIndex--
 		}
 	case key.Matches('g'):
 		newIndex = 0
 	case key.Matches('G'):
-		newIndex = len(v.statuses) - 1
+		newIndex = len(statuses) - 1
 	case key.Matches('o'):
-		if v.selectedStatus != nil {
+		if selected != nil {
 			var url string
-			if v.selectedStatus.Reblog != nil && v.selectedStatus.Reblog.URL != "" {
-				url = v.selectedStatus.Reblog.URL
-			} else if v.selectedStatus.URL != "" {
-				url = v.selectedStatus.URL
+			if selected.Reblog != nil && selected.Reblog.URL != "" {
+				url = selected.Reblog.URL
+			} else if selected.URL != "" {
+				url = selected.URL
 			}
 			if url != "" {
 				if err := utils.OpenBrowser(url); err != nil {
@@ -219,12 +254,12 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 		}
 		return
 	case key.Matches('v'):
-		if v.selectedStatus != nil {
+		if selected != nil {
 			var url string
-			if v.selectedStatus.Reblog != nil && v.selectedStatus.Reblog.Card != nil && v.selectedStatus.Reblog.Card.URL != "" {
-				url = v.selectedStatus.Reblog.Card.URL
-			} else if v.selectedStatus.Card != nil && v.selectedStatus.Card.URL != "" {
-				url = v.selectedStatus.Card.URL
+			if selected.Reblog != nil && selected.Reblog.Card != nil && selected.Reblog.Card.URL != "" {
+				url = selected.Reblog.Card.URL
+			} else if selected.Card != nil && selected.Card.URL != "" {
+				url = selected.Card.URL
 			}
 			if url != "" {
 				if err := utils.OpenBrowser(url); err != nil {
@@ -242,7 +277,7 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 	if newIndex < 0 {
 		newIndex = 0
 	}
-	if newIndex >= len(v.statuses) {
+	if newIndex >= len(statuses) {
 		if v.onLoadMore != nil && !v.app.loading {
 			go v.onLoadMore()
 		}
@@ -257,8 +292,8 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 		v.scrollOffset = newIndex
 	}
 
-	newStatus := v.statuses[newIndex]
-	if v.selectedStatus == nil || newStatus.ID != v.selectedStatus.ID {
-		v.selectedStatus = newStatus
+	newSelected := statuses[newIndex]
+	if selected == nil || newSelected.ID != selected.ID {
+		v.timelines[v.index].Selected = newSelected
 	}
 }
