@@ -162,8 +162,12 @@ func ParseStatus(content string, tags []mastodon.Tag) []vaxis.Segment {
 			})
 			cursor = closeTagStart + len(closeTag)
 
-		} else if strings.EqualFold(fullTag, "<br>") {
-			// Convert <br> and </p> tags into newlines
+		} else if strings.EqualFold(fullTag, "<li>") {
+			// Convert <li> to a bullet point
+			segments = append(segments, vaxis.Segment{Text: "• "})
+			cursor = tagEnd + 1
+		} else if map[string]bool{"<br>": true, "<br/>": true, "<br />": true, "</li>": true}[strings.ToLower(fullTag)] {
+			// Convert </li>, <br> and </p> tags into newlines
 			segments = append(segments, vaxis.Segment{Text: "\n"})
 			cursor = tagEnd + 1
 		} else if strings.EqualFold(fullTag, "</p>") {
