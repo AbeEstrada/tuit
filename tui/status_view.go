@@ -66,7 +66,7 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 
 	var isBot string
 	if displayStatus.Account.Bot {
-		isBot = "Automated: "
+		isBot = "Automated · "
 	}
 
 	userLine := fmt.Sprintf("%s%s (@%s)", isBot, displayStatus.Account.DisplayName, displayStatus.Account.Acct)
