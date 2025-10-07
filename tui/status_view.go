@@ -62,18 +62,21 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 	}
 
 	metaX := avatarWidth + 1
-	if width > metaX {
-		metaWin := win.New(metaX, headerY, width-metaX, avatarHeight)
+	metaWin := win.New(metaX, headerY, width-metaX, avatarHeight)
 
-		userLine := fmt.Sprintf("%s (@%s)", displayStatus.Account.DisplayName, displayStatus.Account.Acct)
-		metaWin.Println(0, vaxis.Segment{Text: userLine, Style: vaxis.Style{Attribute: vaxis.AttrBold}})
-
-		timeLine := fmt.Sprintf("%s · %s", utils.FormatTimeSince(displayStatus.CreatedAt.Local()), utils.TitleCase(displayStatus.Visibility))
-		metaWin.Println(1, vaxis.Segment{Text: timeLine})
-
-		statsLine := fmt.Sprintf("%d replies · %d boosts · %d favorites", displayStatus.RepliesCount, displayStatus.ReblogsCount, displayStatus.FavouritesCount)
-		metaWin.Println(2, vaxis.Segment{Text: statsLine})
+	var isBot string
+	if displayStatus.Account.Bot {
+		isBot = "Automated: "
 	}
+
+	userLine := fmt.Sprintf("%s%s (@%s)", isBot, displayStatus.Account.DisplayName, displayStatus.Account.Acct)
+	metaWin.Println(0, vaxis.Segment{Text: userLine, Style: vaxis.Style{Attribute: vaxis.AttrBold}})
+
+	timeLine := fmt.Sprintf("%s · %s", utils.FormatTimeSince(displayStatus.CreatedAt.Local()), utils.TitleCase(displayStatus.Visibility))
+	metaWin.Println(1, vaxis.Segment{Text: timeLine})
+
+	statsLine := fmt.Sprintf("%d replies · %d boosts · %d favorites", displayStatus.RepliesCount, displayStatus.ReblogsCount, displayStatus.FavouritesCount)
+	metaWin.Println(2, vaxis.Segment{Text: statsLine})
 
 	y = headerY + avatarHeight + 1
 
