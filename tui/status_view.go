@@ -88,6 +88,41 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 
 	contentY := rows
 
+	if displayStatus.Card != nil {
+		card := displayStatus.Card
+
+		if card.Image != "" {
+			imageURL := card.Image
+			mediaWidth := width
+
+			vxImage, cached := utils.ImageCache.Get(imageURL)
+			if cached {
+				_, mediaHeight := vxImage.CellSize()
+
+				if contentY+mediaHeight < contentHeight {
+					imgWin := contentWin.New(0, contentY, mediaWidth, mediaHeight)
+					vxImage.Draw(imgWin)
+
+					contentY += mediaHeight
+				}
+			} else {
+				var calculatedHeight int
+
+				if card.Width > 0 {
+					aspectRatio := float64(card.Height) / float64(card.Width)
+					calculatedHeight = int(float64(mediaWidth) * aspectRatio * 0.5)
+					calculatedHeight = max(calculatedHeight, 1)
+				} else {
+					calculatedHeight = 10
+				}
+
+				utils.ImageCache.LoadAsync(imageURL, mediaWidth, calculatedHeight)
+			}
+		}
+
+		contentY++
+	}
+
 	if len(displayStatus.MediaAttachments) > 0 {
 		mediaWidth := width
 
