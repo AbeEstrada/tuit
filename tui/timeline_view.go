@@ -218,6 +218,23 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 			}
 		}
 		return
+	case key.Matches('v'):
+		if v.selectedStatus != nil {
+			var url string
+			if v.selectedStatus.Reblog != nil && v.selectedStatus.Reblog.Card != nil && v.selectedStatus.Reblog.Card.URL != "" {
+				url = v.selectedStatus.Reblog.Card.URL
+			} else if v.selectedStatus.Card != nil && v.selectedStatus.Card.URL != "" {
+				url = v.selectedStatus.Card.URL
+			}
+			if url != "" {
+				if err := utils.OpenBrowser(url); err != nil {
+					log.Printf("Failed to open URL: %v", err)
+				}
+			} else {
+				log.Printf("No URL available to open")
+			}
+		}
+		return
 	default:
 		return
 	}
