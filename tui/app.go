@@ -146,6 +146,11 @@ func (app *App) handleEvent() {
 	}
 }
 
+func (app *App) RequestQuit() {
+	app.showQuit = true
+	app.vx.PostEvent(vaxis.Redraw{})
+}
+
 func (app *App) handleKeyEvent(key vaxis.Key) {
 	if app.showQuit {
 		action := app.quitModal.HandleKey(key)
@@ -158,13 +163,8 @@ func (app *App) handleKeyEvent(key vaxis.Key) {
 		return
 	}
 
-	// Handle global keybindings
-	if key.Matches('q') {
-		app.showQuit = true
-	} else {
-		// Delegate keys to the current view
-		if app.view != nil {
-			app.view.HandleKey(key)
-		}
+	// Delegate keys to the current view
+	if app.view != nil {
+		app.view.HandleKey(key)
 	}
 }
