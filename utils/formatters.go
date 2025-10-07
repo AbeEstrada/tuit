@@ -167,10 +167,10 @@ func ParseStatus(content string, tags []mastodon.Tag) []vaxis.Segment {
 			segments = append(segments, vaxis.Segment{Text: "• "})
 			cursor = tagEnd + 1
 		} else if map[string]bool{"<br>": true, "<br/>": true, "<br />": true, "</li>": true}[strings.ToLower(fullTag)] {
-			// Convert </li>, <br> and </p> tags into newlines
+			// Convert <br>, and </li> tags into newlines
 			segments = append(segments, vaxis.Segment{Text: "\n"})
 			cursor = tagEnd + 1
-		} else if strings.EqualFold(fullTag, "</p>") {
+		} else if map[string]bool{"</p>": true, "</li>": true}[strings.ToLower(fullTag)] {
 			segments = append(segments, vaxis.Segment{Text: "\n\n"})
 			cursor = tagEnd + 1
 		} else {
