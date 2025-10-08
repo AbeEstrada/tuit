@@ -12,7 +12,24 @@ TUI Mastodon Client
   <img width="1808" height="1064" alt="Screenshot" src="https://github.com/user-attachments/assets/270db4d3-49a6-4eae-8516-313b9fad15f1" />
 </p>
 
-## Key Bindings
+## Build and Installation
+
+This project uses [`just`](https://github.com/casey/just) as a command runner and requires [Go](https://golang.org/) for building. Below are the available commands:
+
+### Available Commands
+
+- `just` or `just install` - Build and install the binary to `PREFIX/bin/` (default: `/usr/local/bin`)
+- `just build` - Build the binary in the current directory
+- `just uninstall` - Remove the installed binary
+- `just clean` - Remove the built binary from the current directory
+
+## Usage
+
+```sh
+tuit
+```
+
+## Keybindings
 
 ### Global
 
