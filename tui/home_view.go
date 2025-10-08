@@ -13,6 +13,7 @@ type HomeView struct {
 	left        *TimelineView
 	right       *StatusView
 	focusedView int
+	isStreaming bool
 }
 
 func CreateHomeView() *HomeView {
@@ -145,11 +146,14 @@ func (v *HomeView) startStreaming() {
 		return
 	}
 
+	v.isStreaming = true
+
 	for {
 		select {
 		case event := <-events:
 			v.handleStreamingEvent(event)
 		case <-ctx.Done():
+			v.isStreaming = false
 			return
 		}
 	}
@@ -221,7 +225,7 @@ func (v *HomeView) HandleKey(key vaxis.Key) {
 		v.focusedView = 0
 	} else if key.Matches('l') {
 		v.focusedView = 1
-	} else if key.Matches('r') && !v.app.loading {
+	} else if key.Matches('r') && !v.app.loading && !v.isStreaming {
 		go v.reloadHomeTimeline()
 	} else if key.Matches('t') && !v.app.loading {
 		go v.getStatusContext()
