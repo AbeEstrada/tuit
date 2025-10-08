@@ -5,9 +5,9 @@ import (
 	"log"
 
 	"git.sr.ht/~rockorager/vaxis"
-	"github.com/AbeEstrada/mastty/auth"
-	"github.com/AbeEstrada/mastty/config"
-	"github.com/AbeEstrada/mastty/utils"
+	"github.com/AbeEstrada/tuit/auth"
+	"github.com/AbeEstrada/tuit/config"
+	"github.com/AbeEstrada/tuit/utils"
 	"github.com/mattn/go-mastodon"
 )
 

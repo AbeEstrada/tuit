@@ -2,7 +2,7 @@ package tui
 
 import (
 	"git.sr.ht/~rockorager/vaxis"
-	"github.com/AbeEstrada/mastty/constants"
+	"github.com/AbeEstrada/tuit/constants"
 )
 
 type Header struct {

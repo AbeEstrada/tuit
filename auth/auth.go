@@ -9,8 +9,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/AbeEstrada/mastty/config"
-	"github.com/AbeEstrada/mastty/constants"
+	"github.com/AbeEstrada/tuit/config"
+	"github.com/AbeEstrada/tuit/constants"
 	"github.com/mattn/go-mastodon"
 )
 

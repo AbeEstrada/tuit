@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/AbeEstrada/mastty/tui"
+	"github.com/AbeEstrada/tuit/tui"
 )
 
 func main() {

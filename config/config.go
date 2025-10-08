@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/AbeEstrada/mastty/constants"
+	"github.com/AbeEstrada/tuit/constants"
 )
 
 type ConfigAuth struct {

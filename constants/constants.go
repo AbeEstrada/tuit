@@ -1,7 +1,7 @@
 package constants
 
 const (
-	AppName    = "Mastty"
+	AppName    = "Tuit"
 	AppVersion = "1.0.0"
-	AppUrl     = "https://github.com/AbeEstrada/mastty"
+	AppUrl     = "https://github.com/AbeEstrada/tuit"
 )
