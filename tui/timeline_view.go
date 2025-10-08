@@ -11,15 +11,15 @@ import (
 )
 
 type Timeline struct {
-	Selected *mastodon.Status
-	Statuses []*mastodon.Status
+	Selected     *mastodon.Status
+	Statuses     []*mastodon.Status
+	scrollOffset int
 }
 
 type TimelineView struct {
 	app               *App
 	timelines         []Timeline
 	index             int
-	scrollOffset      int
 	onSelectionChange func(status *mastodon.Status)
 	onLoadMore        func()
 }
@@ -46,8 +46,9 @@ func (v *TimelineView) AddTimeline(statuses []*mastodon.Status, selected *mastod
 	}
 
 	v.timelines = append(v.timelines, Timeline{
-		Statuses: statuses,
-		Selected: selectedStatus,
+		Statuses:     statuses,
+		Selected:     selectedStatus,
+		scrollOffset: 0,
 	})
 
 	v.index = len(v.timelines) - 1
@@ -168,9 +169,10 @@ func (v *TimelineView) Draw(win vaxis.Window, focused bool) {
 	timeline := &v.timelines[v.index]
 	statuses := timeline.Statuses
 	selected := timeline.Selected
+	scrollOffset := timeline.scrollOffset
 
 	y := 0
-	for i := v.scrollOffset; i < len(statuses) && y < height-1; i++ {
+	for i := scrollOffset; i < len(statuses) && y < height-1; i++ {
 		status := statuses[i]
 		user := "@" + status.Account.Acct
 		createdAt := status.CreatedAt.Local()
@@ -206,8 +208,11 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 		return
 	}
 
-	statuses := v.timelines[v.index].Statuses
-	selected := v.timelines[v.index].Selected
+	timeline := &v.timelines[v.index]
+	statuses := timeline.Statuses
+	selected := timeline.Selected
+	scrollOffset := timeline.scrollOffset
+
 	currentIndex := -1
 	if selected != nil {
 		for i, status := range statuses {
@@ -285,11 +290,11 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 	}
 
 	_, height := v.app.vx.Window().Size()
-	if newIndex >= v.scrollOffset+height-3 {
-		v.scrollOffset = newIndex - (height - 4)
+	if newIndex >= scrollOffset+height-3 {
+		v.timelines[v.index].scrollOffset = newIndex - (height - 4)
 	}
-	if newIndex < v.scrollOffset {
-		v.scrollOffset = newIndex
+	if newIndex < scrollOffset {
+		v.timelines[v.index].scrollOffset = newIndex
 	}
 
 	newSelected := statuses[newIndex]
