@@ -66,11 +66,21 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 
 	var isBot string
 	if displayStatus.Account.Bot {
-		isBot = "Automated · "
+		isBot = " · Automated"
 	}
 
-	userLine := fmt.Sprintf("%s%s (@%s)", isBot, displayStatus.Account.DisplayName, displayStatus.Account.Acct)
-	metaWin.Println(0, vaxis.Segment{Text: userLine, Style: vaxis.Style{Attribute: vaxis.AttrBold}})
+	metaWin.Println(
+		0,
+		vaxis.Segment{
+			Text:  displayStatus.Account.DisplayName,
+			Style: vaxis.Style{Attribute: vaxis.AttrBold},
+		},
+		vaxis.Segment{
+			Text:  " (" + displayStatus.Account.Acct + ")",
+			Style: vaxis.Style{Attribute: vaxis.AttrBold},
+		},
+		vaxis.Segment{Text: isBot},
+	)
 
 	timeLine := fmt.Sprintf("%s · %s", utils.FormatTimeSince(displayStatus.CreatedAt.Local()), utils.TitleCase(displayStatus.Visibility))
 	metaWin.Println(1, vaxis.Segment{Text: timeLine})
