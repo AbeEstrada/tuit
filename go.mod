@@ -1,4 +1,4 @@
-module github.com/AbeEstrada/mastty
+module github.com/AbeEstrada/tuit
 
 go 1.25
 
