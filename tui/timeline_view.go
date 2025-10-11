@@ -46,7 +46,11 @@ func (v *TimelineView) AddTimeline(statuses []*mastodon.Status, selected *mastod
 
 	selectedStatus := statuses[0]
 	if selected != nil {
-		selectedStatus = selected
+		for _, status := range statuses {
+			if status.ID == selected.ID {
+				selectedStatus = status
+			}
+		}
 	}
 
 	t := Timeline{

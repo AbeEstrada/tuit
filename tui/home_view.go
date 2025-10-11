@@ -153,7 +153,7 @@ func (v *HomeView) getAccountAndTimeline() {
 	if err == nil {
 		statuses, err := v.app.client.GetAccountStatuses(context.Background(), account.ID, &mastodon.Pagination{})
 		if err == nil {
-			v.left.AddTimeline(statuses, nil, account)
+			v.left.AddTimeline(statuses, original, account)
 		}
 	}
 
