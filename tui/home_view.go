@@ -45,7 +45,7 @@ func (v *HomeView) getHomeTimeline() {
 
 	timeline, err := v.app.client.GetTimelineHome(context.Background(), nil)
 	if err == nil {
-		v.left.AddTimeline(timeline, nil)
+		v.left.AddTimeline(timeline, nil, nil)
 		v.app.vx.PostEvent(vaxis.Redraw{})
 	}
 
@@ -76,7 +76,7 @@ func (v *HomeView) getStatusContext() {
 				timeline = append(timeline, status)
 			}
 
-			v.left.AddTimeline(timeline, original)
+			v.left.AddTimeline(timeline, original, nil)
 			v.app.vx.PostEvent(vaxis.Redraw{})
 		}
 	}
@@ -132,6 +132,29 @@ func (v *HomeView) loadMoreHomeTimeline() {
 	if err == nil && len(newStatuses) > 0 {
 		v.left.AppendToTimeline(index, newStatuses)
 		v.app.vx.PostEvent(vaxis.Redraw{})
+	}
+
+	v.app.SetLoading(false)
+}
+
+func (v *HomeView) getAccountAndTimeline() {
+	original := v.left.SelectedStatus()
+	if original.Reblog != nil {
+		original = original.Reblog
+	}
+
+	if original.ID == "" {
+		return
+	}
+
+	v.app.SetLoading(true)
+
+	account, err := v.app.client.GetAccount(context.Background(), original.Account.ID)
+	if err == nil {
+		statuses, err := v.app.client.GetAccountStatuses(context.Background(), account.ID, &mastodon.Pagination{})
+		if err == nil {
+			v.left.AddTimeline(statuses, nil, account)
+		}
 	}
 
 	v.app.SetLoading(false)
@@ -229,6 +252,8 @@ func (v *HomeView) HandleKey(key vaxis.Key) {
 		go v.reloadHomeTimeline()
 	} else if key.Matches('t') && !v.app.loading {
 		go v.getStatusContext()
+	} else if key.Matches('u') && !v.app.loading {
+		go v.getAccountAndTimeline()
 	} else if key.Matches('q') {
 		if len(v.left.timelines) <= 1 {
 			v.app.RequestQuit()

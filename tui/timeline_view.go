@@ -11,8 +11,9 @@ import (
 )
 
 type Timeline struct {
-	Selected     *mastodon.Status
 	Statuses     []*mastodon.Status
+	Selected     *mastodon.Status
+	Account      *mastodon.Account
 	scrollOffset int
 }
 
@@ -35,8 +36,11 @@ func (v *TimelineView) SetApp(app *App) {
 	v.app = app
 }
 
-func (v *TimelineView) AddTimeline(statuses []*mastodon.Status, selected *mastodon.Status) {
+func (v *TimelineView) AddTimeline(statuses []*mastodon.Status, selected *mastodon.Status, account *mastodon.Account) {
 	if len(statuses) == 0 {
+		if account == nil {
+			return
+		}
 		return
 	}
 
@@ -45,16 +49,25 @@ func (v *TimelineView) AddTimeline(statuses []*mastodon.Status, selected *mastod
 		selectedStatus = selected
 	}
 
-	v.timelines = append(v.timelines, Timeline{
+	t := Timeline{
 		Statuses:     statuses,
 		Selected:     selectedStatus,
 		scrollOffset: 0,
-	})
+	}
+
+	if account != nil {
+		t.Account = account
+	}
+
+	v.timelines = append(v.timelines, t)
 
 	v.index = len(v.timelines) - 1
-	if v.index == 0 {
+	switch {
+	case v.index == 0:
 		v.app.header.SetText("Home")
-	} else {
+	case account != nil:
+		v.app.header.SetText(account.DisplayName)
+	default: // v.index != 0 && account == nil
 		v.app.header.SetText("Thread")
 	}
 }
