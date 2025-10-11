@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 
 	"git.sr.ht/~rockorager/vaxis"
 	"github.com/AbeEstrada/tuit/utils"
@@ -100,6 +101,45 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 	_, rows := contentWin.Wrap(content...)
 
 	contentY := rows
+
+	if displayStatus.Poll != nil {
+		poll := displayStatus.Poll
+
+		contentWin.Println(contentY, vaxis.Segment{Text: "Poll"})
+		contentY++
+
+		indicator := "○"
+		if poll.Multiple {
+			indicator = "☐"
+		}
+
+		for i, option := range poll.Options {
+			prefix := indicator
+			if slices.Contains(poll.OwnVotes, i) {
+				prefix = "✓"
+			}
+
+			var votes string
+			if poll.Voted {
+				percentage := 0.0
+				if poll.VotersCount > 0 {
+					percentage = float64(option.VotesCount) / float64(poll.VotersCount) * 100
+				}
+				votes = fmt.Sprintf("%.0f%%", percentage)
+			}
+
+			formatted := fmt.Sprintf("%s %s %s", prefix, votes, option.Title)
+			contentWin.Println(contentY, vaxis.Segment{Text: formatted})
+			contentY++
+		}
+
+		if poll.Voted {
+			contentWin.Println(contentY, vaxis.Segment{Text: fmt.Sprintf("Total: %d", poll.VotersCount)})
+			contentY++
+		}
+
+		contentY += 2
+	}
 
 	if displayStatus.Card != nil {
 		card := displayStatus.Card
