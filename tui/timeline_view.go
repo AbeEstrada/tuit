@@ -67,14 +67,8 @@ func (v *TimelineView) AddTimeline(statuses []*mastodon.Status, selected *mastod
 	v.timelines = append(v.timelines, t)
 
 	v.index = len(v.timelines) - 1
-	switch {
-	case v.index == 0:
-		v.app.header.SetText("Home")
-	case account != nil:
-		v.app.header.SetText(account.DisplayName)
-	default: // v.index != 0 && account == nil
-		v.app.header.SetText("Thread")
-	}
+
+	v.setTitle()
 }
 
 func (v *TimelineView) RemoveLastTimeline() {
@@ -88,8 +82,19 @@ func (v *TimelineView) RemoveLastTimeline() {
 		v.index = len(v.timelines) - 1
 	}
 
-	if v.index == 0 {
+	v.setTitle()
+}
+
+func (v *TimelineView) setTitle() {
+	timeline := &v.timelines[v.index]
+
+	switch {
+	case v.index == 0:
 		v.app.header.SetText("Home")
+	case timeline.Account != nil:
+		v.app.header.SetText(timeline.Account.DisplayName)
+	default: // v.index != 0 && timeline.Account == nil
+		v.app.header.SetText("Thread")
 	}
 }
 
