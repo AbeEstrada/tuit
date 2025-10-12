@@ -49,6 +49,7 @@ func (v *TimelineView) AddTimeline(statuses []*mastodon.Status, selected *mastod
 		for _, status := range statuses {
 			if status.ID == selected.ID {
 				selectedStatus = status
+				break
 			}
 		}
 	}
@@ -71,7 +72,7 @@ func (v *TimelineView) AddTimeline(statuses []*mastodon.Status, selected *mastod
 		v.app.header.SetText("Thread")
 	case account != nil:
 		v.app.header.SetText(account.DisplayName)
-	default: // v.index != 0 && account == nil
+	default:
 		v.app.header.SetText("Home")
 	}
 }
@@ -129,7 +130,7 @@ func (v *TimelineView) UpdateTimeline(index int, newStatuses []*mastodon.Status,
 		for _, status := range statuses {
 			if status.ID == selected.ID {
 				v.timelines[index].Selected = status
-				return
+				break
 			}
 		}
 	}
