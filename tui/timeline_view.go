@@ -68,12 +68,12 @@ func (v *TimelineView) AddTimeline(statuses []*mastodon.Status, selected *mastod
 
 	v.index = len(v.timelines) - 1
 	switch {
-	case v.index > 0:
-		v.app.header.SetText("Thread")
+	case v.index == 0:
+		v.app.header.SetText("Home")
 	case account != nil:
 		v.app.header.SetText(account.DisplayName)
-	default:
-		v.app.header.SetText("Home")
+	default: // v.index != 0 && account == nil
+		v.app.header.SetText("Thread")
 	}
 }
 
