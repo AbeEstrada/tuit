@@ -96,6 +96,11 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 		return
 	}
 
+	if displayStatus.Sensitive {
+		win.Println(y, vaxis.Segment{Text: "⚠ Sensitive"})
+		y += 2
+	}
+
 	contentWin := win.New(0, y, width, contentHeight)
 	content := utils.ParseStatus(displayStatus.Content, displayStatus.Tags)
 	_, rows := contentWin.Wrap(content...)
