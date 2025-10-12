@@ -22,7 +22,7 @@ func CreateHomeView() *HomeView {
 		focusedView: 0,
 	}
 	leftView := CreateTimelineView()
-	leftView.onLoadMore = v.loadMoreHomeTimeline
+	leftView.onLoadMore = v.loadMoreTimeline
 	v.left = leftView
 
 	return v
@@ -110,10 +110,10 @@ func (v *HomeView) reloadHomeTimeline() {
 	v.app.SetLoading(false)
 }
 
-func (v *HomeView) loadMoreHomeTimeline() {
+func (v *HomeView) loadMoreTimeline() {
 	v.app.SetLoading(true)
 
-	index := 0 // Home
+	index := v.left.index
 	timeline := &v.left.timelines[index]
 	statuses := timeline.Statuses
 
@@ -124,10 +124,20 @@ func (v *HomeView) loadMoreHomeTimeline() {
 
 	maxID := statuses[len(statuses)-1].ID
 
-	newStatuses, err := v.app.client.GetTimelineHome(context.Background(), &mastodon.Pagination{
-		MaxID: maxID,
-		Limit: 20,
-	})
+	var newStatuses []*mastodon.Status
+	var err error
+
+	if index == 0 {
+		newStatuses, err = v.app.client.GetTimelineHome(context.Background(), &mastodon.Pagination{
+			MaxID: maxID,
+			Limit: 20,
+		})
+	} else if timeline.Account != nil {
+		newStatuses, err = v.app.client.GetAccountStatuses(context.Background(), timeline.Account.ID, &mastodon.Pagination{
+			MaxID: maxID,
+			Limit: 20,
+		})
+	}
 
 	if err == nil && len(newStatuses) > 0 {
 		v.left.AppendToTimeline(index, newStatuses)

@@ -315,7 +315,7 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 		newIndex = 0
 	}
 	if newIndex >= len(statuses) {
-		if v.onLoadMore != nil && !v.app.loading && v.index == 0 {
+		if v.onLoadMore != nil && !v.app.loading {
 			go v.onLoadMore()
 		}
 		return
