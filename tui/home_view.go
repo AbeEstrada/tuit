@@ -199,12 +199,18 @@ func (v *HomeView) handleStreamingEvent(event mastodon.Event) {
 		v.left.PrependToTimeline(0, []*mastodon.Status{e.Status})
 		v.app.vx.PostEvent(vaxis.Redraw{})
 
+	case *mastodon.UpdateEditEvent:
+		// Update status in the Home timeline
+		v.left.UpdateEdit(0, e.Status)
+		v.app.vx.PostEvent(vaxis.Redraw{})
+
 	case *mastodon.NotificationEvent:
 		log.Printf("New Notification [%s] from @%s\n", e.Notification.Type, e.Notification.Account.Acct)
 
 	case *mastodon.DeleteEvent:
 		// Delete status from Home timeline
 		v.left.DeleteFromTimeline(0, e.ID)
+		v.app.vx.PostEvent(vaxis.Redraw{})
 
 	case *mastodon.ErrorEvent:
 		log.Printf("Error %v\n", e.Error())
