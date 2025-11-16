@@ -6,6 +6,10 @@
 
 TUI Mastodon Client
 
+<p align="center">
+  <img width="1808" height="1064" alt="Screenshot" src="https://github.com/user-attachments/assets/270db4d3-49a6-4eae-8516-313b9fad15f1" />
+</p>
+
 ## Build and Installation
 
 This project uses [`just`](https://github.com/casey/just) as a command runner and requires [Go](https://golang.org/) for building. Below are the available commands:
@@ -107,9 +111,3 @@ If authentication fails:
 | ------------- | ---------------------------- |
 | `y` & `Enter` | Confirm and quit application |
 | `q` & `Esc`   | Cancel and close modal       |
-
-## Screenshots
-
-<p align="center">
-  <img width="1808" height="1064" alt="Screenshot" src="https://github.com/user-attachments/assets/270db4d3-49a6-4eae-8516-313b9fad15f1" />
-</p>
