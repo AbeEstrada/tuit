@@ -40,16 +40,16 @@ Paste the code here: [paste-code-from-browser]
 
 Credentials are automatically saved to:
 
-| OS | Location |
-|----|----------|
-| **Linux** | `~/.config/tuit/config.json` |
-| **macOS** | `~/Library/Application Support/tuit/config.json` |
-| **Windows** | `%APPDATA%\tuit\config.json` |
+| OS          | Location                                         |
+| ----------- | ------------------------------------------------ |
+| **Linux**   | `~/.config/tuit/config.json`                     |
+| **macOS**   | `~/Library/Application Support/tuit/config.json` |
+| **Windows** | `%APPDATA%\tuit\config.json`                     |
 
 ### How It Works
 
 1. First run → OAuth2 flow with Mastodon
-2. Credentials saved to OS config directory  
+2. Credentials saved to OS config directory
 3. Subsequent runs → Auto load from config file
 
 The app handles all authentication automatically and stores your access token for future use.
@@ -73,42 +73,42 @@ If authentication fails:
 
 ### Global
 
-| Key | Action |
-|-----|--------|
+| Key | Action                                 |
+| --- | -------------------------------------- |
 | `q` | Show quit modal / Close current thread |
 
 ### Navigation
 
-| Key | Action |
-|-----|--------|
+| Key   | Action                              |
+| ----- | ----------------------------------- |
 | `Tab` | Switch between left and right views |
-| `h` | Focus timeline view |
-| `l` | Focus status view |
-| `r` | Reload home timeline |
-| `t` | Go to thread |
-| `q` | Quit / Remove thread view |
+| `h`   | Focus timeline view                 |
+| `l`   | Focus status view                   |
+| `r`   | Reload home timeline                |
+| `t`   | Go to thread                        |
+| `q`   | Quit / Remove thread view           |
 
 ### Timeline
 
-| Key | Action |
-|-----|--------|
-| `j` | Move to next status |
-| `k` | Move to previous status |
-| `g` | Jump to first status |
-| `G` | Jump to last status |
-| `o` | Open status URL in browser |
-| `v` | Open card URL in browser |
+| Key | Action                                                |
+| --- | ----------------------------------------------------- |
+| `j` | Move to next status                                   |
+| `k` | Move to previous status                               |
+| `g` | Jump to first status                                  |
+| `G` | Jump to last status                                   |
+| `O` | Open status with original URL in browser              |
+| `o` | Open status in current server instance URL in browser |
+| `v` | Open card URL in browser                              |
 
 ### Quit Modal
 
-| Key | Action |
-|-----|--------|
+| Key           | Action                       |
+| ------------- | ---------------------------- |
 | `y` & `Enter` | Confirm and quit application |
-| `q` & `Esc` | Cancel and close modal |
+| `q` & `Esc`   | Cancel and close modal       |
 
 ## Screenshots
 
 <p align="center">
   <img width="1808" height="1064" alt="Screenshot" src="https://github.com/user-attachments/assets/270db4d3-49a6-4eae-8516-313b9fad15f1" />
 </p>
-

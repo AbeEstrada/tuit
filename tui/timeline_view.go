@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	_ "image/jpeg"
 	_ "image/png"
 	"log"
@@ -31,7 +32,6 @@ func (v *TimelineView) SetApp(app *App) {
 
 func (v *TimelineView) setTitle() {
 	timeline := &v.timelines[v.index]
-
 	switch {
 	case v.index == 0:
 		v.app.header.SetText("Home")
@@ -125,20 +125,25 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 		newIndex = 0
 	case key.Matches('G'):
 		newIndex = len(statuses) - 1
+	case key.Matches('O'):
+		if selected.URL != "" {
+			if err := utils.OpenBrowser(selected.URL); err != nil {
+				log.Printf("Failed to open URL: %v", err)
+			}
+		}
+
 	case key.Matches('o'):
 		if selected != nil {
 			var url string
 			if selected.Reblog != nil && selected.Reblog.URL != "" {
 				url = selected.Reblog.URL
 			} else if selected.URL != "" {
-				url = selected.URL
+				url = fmt.Sprintf("%s/@%s/%s", v.app.config.Auth.Server, selected.Account.Acct, selected.ID)
 			}
 			if url != "" {
 				if err := utils.OpenBrowser(url); err != nil {
 					log.Printf("Failed to open URL: %v", err)
 				}
-			} else {
-				log.Printf("No URL available to open")
 			}
 		}
 		return
