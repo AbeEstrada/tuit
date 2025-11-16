@@ -85,6 +85,7 @@ If authentication fails:
 | `h`   | Focus timeline view                 |
 | `l`   | Focus status view                   |
 | `r`   | Reload home timeline                |
+| `u`   | Go to user timeline                 |
 | `t`   | Go to thread                        |
 | `q`   | Quit / Remove thread view           |
 
