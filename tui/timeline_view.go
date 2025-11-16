@@ -36,9 +36,9 @@ func (v *TimelineView) setTitle() {
 	case v.index == 0:
 		v.app.header.SetText("Home")
 	case timeline.Account != nil:
-		v.app.header.SetText(timeline.Account.DisplayName)
+		v.app.header.SetText("Home → " + timeline.Account.DisplayName)
 	default: // v.index != 0 && timeline.Account == nil
-		v.app.header.SetText("Thread")
+		v.app.header.SetText("Home → Thread")
 	}
 }
 
