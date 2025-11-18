@@ -126,8 +126,14 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 	case key.Matches('G'):
 		newIndex = len(statuses) - 1
 	case key.Matches('O'):
-		if selected.URL != "" {
-			if err := utils.OpenBrowser(selected.URL); err != nil {
+		var url string
+		if selected.Reblog != nil && selected.Reblog.URL != "" {
+			url = selected.Reblog.URL
+		} else if selected.URL != "" {
+			url = selected.URL
+		}
+		if url != "" {
+			if err := utils.OpenBrowser(url); err != nil {
 				log.Printf("Failed to open URL: %v", err)
 			}
 		}
@@ -136,7 +142,7 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 		if selected != nil {
 			var url string
 			if selected.Reblog != nil && selected.Reblog.URL != "" {
-				url = selected.Reblog.URL
+				url = fmt.Sprintf("%s/@%s/%s", v.app.config.Auth.Server, selected.Reblog.Account.Acct, selected.Reblog.ID)
 			} else if selected.URL != "" {
 				url = fmt.Sprintf("%s/@%s/%s", v.app.config.Auth.Server, selected.Account.Acct, selected.ID)
 			}
