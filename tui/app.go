@@ -12,17 +12,16 @@ import (
 )
 
 type App struct {
-	vx        *vaxis.Vaxis
-	views     map[string]View
-	view      View
-	header    *Header
-	footer    *Footer
-	quitModal *QuitModal
-	showQuit  bool
-	running   bool
-	loading   bool
-	config    *config.Config
-	client    *mastodon.Client
+	vx       *vaxis.Vaxis
+	views    map[string]View
+	view     View
+	header   *Header
+	footer   *Footer
+	showQuit bool
+	running  bool
+	loading  bool
+	config   *config.Config
+	client   *mastodon.Client
 }
 
 func CreateApp() (*App, error) {
@@ -41,16 +40,15 @@ func CreateApp() (*App, error) {
 	views["home"] = CreateHomeView()
 
 	app := &App{
-		vx:        vx,
-		views:     views,
-		view:      views["home"],
-		header:    CreateHeader(),
-		footer:    CreateFooter(vx),
-		quitModal: CreateQuitModal(),
-		showQuit:  false,
-		running:   true,
-		loading:   false,
-		config:    cfg,
+		vx:       vx,
+		views:    views,
+		view:     views["home"],
+		header:   CreateHeader(),
+		footer:   CreateFooter(vx),
+		showQuit: false,
+		running:  true,
+		loading:  false,
+		config:   cfg,
 	}
 
 	for _, view := range views {
@@ -93,8 +91,9 @@ func (app *App) draw() {
 		app.view.Draw(win)
 	}
 
+	app.footer.SetText("")
 	if app.showQuit {
-		app.quitModal.Draw(win)
+		app.footer.SetText("Quit?")
 	}
 
 	app.footer.Draw(win)
@@ -153,13 +152,12 @@ func (app *App) RequestQuit() {
 
 func (app *App) handleKeyEvent(key vaxis.Key) {
 	if app.showQuit {
-		action := app.quitModal.HandleKey(key)
-		switch action {
-		case "quit":
+		if key.Matches('y') || key.Matches(vaxis.KeyEnter) {
 			app.running = false
-		case "close":
+		} else if key.Matches('n') || key.Matches(vaxis.KeyEsc) || key.Matches('q') {
 			app.showQuit = false
 		}
+
 		return
 	}
 

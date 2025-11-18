@@ -77,9 +77,9 @@ If authentication fails:
 
 ### Global
 
-| Key | Action                                 |
-| --- | -------------------------------------- |
-| `q` | Show quit modal / Close current thread |
+| Key | Action                                        |
+| --- | --------------------------------------------- |
+| `q` | Show quit confirmation / Close current thread |
 
 ### Navigation
 
@@ -104,10 +104,3 @@ If authentication fails:
 | `O` | Open status with original URL in browser              |
 | `o` | Open status in current server instance URL in browser |
 | `v` | Open card URL in browser                              |
-
-### Quit Modal
-
-| Key           | Action                       |
-| ------------- | ---------------------------- |
-| `y` & `Enter` | Confirm and quit application |
-| `q` & `Esc`   | Cancel and close modal       |
