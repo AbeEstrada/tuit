@@ -56,7 +56,7 @@ func (v *TimelineView) Draw(win vaxis.Window, focused bool) {
 	scrollOffset := timeline.scrollOffset
 
 	y := 0
-	for i := scrollOffset; i < len(statuses) && y < height-1; i++ {
+	for i := scrollOffset; i < len(statuses) && y < height-2; i++ {
 		status := statuses[i]
 		user := "@" + status.Account.Acct
 		createdAt := status.CreatedAt.Local()
@@ -185,8 +185,8 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 	}
 
 	_, height := v.app.vx.Window().Size()
-	if newIndex >= scrollOffset+height-3 {
-		v.timelines[v.index].scrollOffset = newIndex - (height - 4)
+	if newIndex >= scrollOffset+height-4 {
+		v.timelines[v.index].scrollOffset = newIndex - (height - 5)
 	}
 	if newIndex < scrollOffset {
 		v.timelines[v.index].scrollOffset = newIndex

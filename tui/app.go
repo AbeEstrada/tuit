@@ -91,12 +91,21 @@ func (app *App) draw() {
 		app.view.Draw(win)
 	}
 
-	app.footer.SetText("")
-	if app.showQuit {
-		app.footer.SetText("Quit?")
+	app.footer.Draw(win)
+
+	width, height := win.Size()
+	separatorStyle := vaxis.Style{
+		Foreground: vaxis.IndexColor(0),
 	}
 
-	app.footer.Draw(win)
+	for col := range width {
+		win.SetCell(col+1, height-2, vaxis.Cell{
+			Character: vaxis.Character{
+				Grapheme: "─",
+			},
+			Style: separatorStyle,
+		})
+	}
 
 	app.vx.Render()
 }
@@ -147,6 +156,7 @@ func (app *App) handleEvent() {
 
 func (app *App) RequestQuit() {
 	app.showQuit = true
+	app.footer.SetText("Quit?")
 	app.vx.PostEvent(vaxis.Redraw{})
 }
 
@@ -156,8 +166,9 @@ func (app *App) handleKeyEvent(key vaxis.Key) {
 			app.running = false
 		} else if key.Matches('n') || key.Matches(vaxis.KeyEsc) || key.Matches('q') {
 			app.showQuit = false
-		}
+			app.footer.SetText("")
 
+		}
 		return
 	}
 
