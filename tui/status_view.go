@@ -10,8 +10,7 @@ import (
 )
 
 type StatusView struct {
-	app      *App
-	statusID mastodon.ID
+	app *App
 }
 
 func CreateStatusView() *StatusView {
@@ -26,10 +25,6 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 	if status == nil {
 		win.Println(0, vaxis.Segment{Text: ""})
 		return
-	}
-
-	if v.statusID != status.ID {
-		v.statusID = status.ID
 	}
 
 	width, height := win.Size()

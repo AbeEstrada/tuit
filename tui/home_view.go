@@ -43,9 +43,13 @@ func (v *HomeView) OnActivate() {
 func (v *HomeView) getHomeTimeline() {
 	v.app.SetLoading(true)
 
-	timeline, err := v.app.client.GetTimelineHome(context.Background(), nil)
+	statuses, err := v.app.client.GetTimelineHome(context.Background(), nil)
 	if err == nil {
-		v.left.AddTimeline(timeline, nil, nil)
+		items := make([]TimelineItem, len(statuses))
+		for i, s := range statuses {
+			items[i] = StatusItem{Status: s}
+		}
+		v.left.AddTimeline(items, nil, nil)
 		v.app.vx.PostEvent(vaxis.Redraw{})
 	}
 
@@ -53,7 +57,15 @@ func (v *HomeView) getHomeTimeline() {
 }
 
 func (v *HomeView) getStatusContext() {
-	original := v.left.SelectedStatus()
+	selectedItem := v.left.SelectedItem()
+
+	item, ok := selectedItem.(StatusItem)
+	if !ok || item.Status == nil {
+		return
+	}
+
+	original := item.Status
+
 	if original.Reblog != nil {
 		original = original.Reblog
 	}
@@ -64,19 +76,19 @@ func (v *HomeView) getStatusContext() {
 		ctx, err := v.app.client.GetStatusContext(context.Background(), original.ID)
 
 		if err == nil {
-			timeline := make([]*mastodon.Status, 0, len(ctx.Ancestors)+1+len(ctx.Descendants))
+			items := make([]TimelineItem, 0, len(ctx.Ancestors)+1+len(ctx.Descendants))
 
 			for _, status := range ctx.Ancestors {
-				timeline = append(timeline, status)
+				items = append(items, StatusItem{Status: status})
 			}
 
-			timeline = append(timeline, original)
+			items = append(items, StatusItem{Status: original})
 
 			for _, status := range ctx.Descendants {
-				timeline = append(timeline, status)
+				items = append(items, StatusItem{Status: status})
 			}
 
-			v.left.AddTimeline(timeline, original, nil)
+			v.left.AddTimeline(items, StatusItem{Status: original}, nil)
 			v.app.vx.PostEvent(vaxis.Redraw{})
 		}
 	}
@@ -88,15 +100,26 @@ func (v *HomeView) reloadHomeTimeline() {
 	v.app.SetLoading(true)
 
 	index := 0 // Home
-	timeline := &v.left.timelines[index]
-	statuses := timeline.Statuses
-
-	if len(statuses) == 0 {
+	if index >= len(v.left.timelines) {
 		v.app.SetLoading(false)
 		return
 	}
 
-	sinceID := statuses[0].ID
+	timeline := &v.left.timelines[index]
+	items := timeline.Items
+
+	if len(items) == 0 {
+		v.app.SetLoading(false)
+		return
+	}
+
+	var sinceID mastodon.ID
+	if firstItem, ok := items[0].(StatusItem); ok && firstItem.Status != nil {
+		sinceID = firstItem.Status.ID
+	} else {
+		v.app.SetLoading(false)
+		return
+	}
 
 	newStatuses, err := v.app.client.GetTimelineHome(context.Background(), &mastodon.Pagination{
 		SinceID: sinceID,
@@ -104,7 +127,11 @@ func (v *HomeView) reloadHomeTimeline() {
 	})
 
 	if err == nil && len(newStatuses) > 0 {
-		v.left.PrependToTimeline(index, newStatuses)
+		newItems := make([]TimelineItem, len(newStatuses))
+		for i, s := range newStatuses {
+			newItems[i] = StatusItem{Status: s}
+		}
+		v.left.PrependToTimeline(index, newItems)
 		v.app.vx.PostEvent(vaxis.Redraw{})
 	}
 	v.app.SetLoading(false)
@@ -114,15 +141,26 @@ func (v *HomeView) loadMoreTimeline() {
 	v.app.SetLoading(true)
 
 	index := v.left.index
-	timeline := &v.left.timelines[index]
-	statuses := timeline.Statuses
-
-	if len(statuses) == 0 {
+	if index >= len(v.left.timelines) {
 		v.app.SetLoading(false)
 		return
 	}
 
-	maxID := statuses[len(statuses)-1].ID
+	timeline := &v.left.timelines[index]
+	items := timeline.Items
+
+	if len(items) == 0 {
+		v.app.SetLoading(false)
+		return
+	}
+
+	var maxID mastodon.ID
+	if lastItem, ok := items[len(items)-1].(StatusItem); ok && lastItem.Status != nil {
+		maxID = lastItem.Status.ID
+	} else {
+		v.app.SetLoading(false)
+		return
+	}
 
 	var newStatuses []*mastodon.Status
 	var err error
@@ -140,7 +178,11 @@ func (v *HomeView) loadMoreTimeline() {
 	}
 
 	if err == nil && len(newStatuses) > 0 {
-		v.left.AppendToTimeline(index, newStatuses)
+		newItems := make([]TimelineItem, len(newStatuses))
+		for i, s := range newStatuses {
+			newItems[i] = StatusItem{Status: s}
+		}
+		v.left.AppendToTimeline(index, newItems)
 		v.app.vx.PostEvent(vaxis.Redraw{})
 	}
 
@@ -148,7 +190,14 @@ func (v *HomeView) loadMoreTimeline() {
 }
 
 func (v *HomeView) getAccountAndTimeline() {
-	original := v.left.SelectedStatus()
+	selectedItem := v.left.SelectedItem()
+
+	item, ok := selectedItem.(StatusItem)
+	if !ok || item.Status == nil {
+		return
+	}
+	original := item.Status
+
 	if original.Reblog != nil {
 		original = original.Reblog
 	}
@@ -163,7 +212,11 @@ func (v *HomeView) getAccountAndTimeline() {
 	if err == nil {
 		statuses, err := v.app.client.GetAccountStatuses(context.Background(), account.ID, &mastodon.Pagination{})
 		if err == nil {
-			v.left.AddTimeline(statuses, original, account)
+			items := make([]TimelineItem, len(statuses))
+			for i, s := range statuses {
+				items[i] = StatusItem{Status: s}
+			}
+			v.left.AddTimeline(items, StatusItem{Status: original}, account)
 		}
 	}
 
@@ -195,20 +248,17 @@ func (v *HomeView) startStreaming() {
 func (v *HomeView) handleStreamingEvent(event mastodon.Event) {
 	switch e := event.(type) {
 	case *mastodon.UpdateEvent:
-		// Add to Home timeline
-		v.left.PrependToTimeline(0, []*mastodon.Status{e.Status})
+		v.left.PrependToTimeline(0, []TimelineItem{StatusItem{Status: e.Status}})
 		v.app.vx.PostEvent(vaxis.Redraw{})
 
 	case *mastodon.UpdateEditEvent:
-		// Update status in the Home timeline
-		v.left.UpdateEdit(0, e.Status)
+		v.left.UpdateEdit(0, StatusItem{Status: e.Status})
 		v.app.vx.PostEvent(vaxis.Redraw{})
 
 	case *mastodon.NotificationEvent:
 		log.Printf("New Notification [%s] from @%s\n", e.Notification.Type, e.Notification.Account.Acct)
 
 	case *mastodon.DeleteEvent:
-		// Delete status from Home timeline
 		v.left.DeleteFromTimeline(0, e.ID)
 		v.app.vx.PostEvent(vaxis.Redraw{})
 
@@ -245,7 +295,15 @@ func (v *HomeView) Draw(win vaxis.Window) {
 	rightWin := win.New(split+2, 1, rightWidth, height)
 
 	v.left.Draw(leftWin, v.focusedView == 0)
-	v.right.Draw(rightWin, v.focusedView == 1, v.left.SelectedStatus())
+
+	var selectedStatus *mastodon.Status
+	if item := v.left.SelectedItem(); item != nil {
+		if item, ok := item.(StatusItem); ok {
+			selectedStatus = item.Status
+		}
+	}
+
+	v.right.Draw(rightWin, v.focusedView == 1, selectedStatus)
 
 	for row := 0; row < height-2; row++ {
 		win.SetCell(split, row+1, vaxis.Cell{
