@@ -11,14 +11,16 @@ import (
 type HomeView struct {
 	app         *App
 	left        *TimelineView
-	right       *StatusView
+	statusView  *StatusView
+	accountView *AccountView
 	focusedView int
 	isStreaming bool
 }
 
 func CreateHomeView() *HomeView {
 	v := &HomeView{
-		right:       CreateStatusView(),
+		statusView:  CreateStatusView(),
+		accountView: CreateAccountView(),
 		focusedView: 0,
 	}
 	leftView := CreateTimelineView()
@@ -31,7 +33,8 @@ func CreateHomeView() *HomeView {
 func (v *HomeView) SetApp(app *App) {
 	v.app = app
 	v.left.SetApp(app)
-	v.right.SetApp(app)
+	v.statusView.SetApp(app)
+	v.accountView.SetApp(app)
 }
 
 func (v *HomeView) OnActivate() {
@@ -212,10 +215,14 @@ func (v *HomeView) getAccountAndTimeline() {
 	if err == nil {
 		statuses, err := v.app.client.GetAccountStatuses(context.Background(), account.ID, &mastodon.Pagination{})
 		if err == nil {
-			items := make([]TimelineItem, len(statuses))
-			for i, s := range statuses {
-				items[i] = StatusItem{Status: s}
+			items := make([]TimelineItem, 0, len(statuses)+1)
+
+			items = append(items, AccountItem{Account: account})
+
+			for _, s := range statuses {
+				items = append(items, StatusItem{Status: s})
 			}
+
 			v.left.AddTimeline(items, StatusItem{Status: original}, account)
 		}
 	}
@@ -296,14 +303,21 @@ func (v *HomeView) Draw(win vaxis.Window) {
 
 	v.left.Draw(leftWin, v.focusedView == 0)
 
-	var selectedStatus *mastodon.Status
-	if item := v.left.SelectedItem(); item != nil {
-		if item, ok := item.(StatusItem); ok {
-			selectedStatus = item.Status
-		}
-	}
+	selectedItem := v.left.SelectedItem()
+	isRightFocused := v.focusedView == 1
 
-	v.right.Draw(rightWin, v.focusedView == 1, selectedStatus)
+	if selectedItem != nil {
+		switch item := selectedItem.(type) {
+		case StatusItem:
+			v.statusView.Draw(rightWin, isRightFocused, item.Status)
+		case AccountItem:
+			v.accountView.Draw(rightWin, isRightFocused, item.Account)
+		default:
+			v.statusView.Draw(rightWin, isRightFocused, nil)
+		}
+	} else {
+		v.statusView.Draw(rightWin, isRightFocused, nil)
+	}
 
 	for row := 0; row < height-2; row++ {
 		win.SetCell(split, row+1, vaxis.Cell{
@@ -339,7 +353,15 @@ func (v *HomeView) HandleKey(key vaxis.Key) {
 		if v.focusedView == 0 {
 			v.left.HandleKey(key)
 		} else {
-			v.right.HandleKey(key)
+			selectedItem := v.left.SelectedItem()
+			if selectedItem != nil {
+				switch selectedItem.(type) {
+				case StatusItem:
+					v.statusView.HandleKey(key)
+				case AccountItem:
+					v.accountView.HandleKey(key)
+				}
+			}
 		}
 	}
 }
