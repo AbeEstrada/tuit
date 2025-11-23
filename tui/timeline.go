@@ -121,13 +121,16 @@ func (v *TimelineView) UpdateEdit(index int, newItem TimelineItem) {
 	timeline := &v.timelines[index]
 	items := timeline.Items
 	selected := timeline.Selected
-	targetID := newItem.ID()
+
+	var selectedID mastodon.ID
+	if selected != nil {
+		selectedID = selected.ID()
+	}
 
 	for i, item := range items {
-		if item.ID() == targetID {
+		if item.ID() == newItem.ID() {
 			v.timelines[index].Items[i] = newItem
-
-			if selected != nil && selected.ID() == targetID {
+			if selected != nil && selectedID == newItem.ID() {
 				v.timelines[index].Selected = newItem
 			}
 			break
