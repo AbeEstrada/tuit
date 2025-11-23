@@ -153,14 +153,7 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 					log.Printf("Failed to open URL: %v", err)
 				}
 			}
-		} else if account, ok := selected.(AccountItem); ok {
-			if account.URL != "" {
-				if err := utils.OpenBrowser(account.URL); err != nil {
-					log.Printf("Failed to open URL: %v", err)
-				}
-			}
 		}
-
 	case key.Matches('o'):
 		if status, ok := selected.(StatusItem); ok {
 			var url string
@@ -172,6 +165,12 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 			}
 			if url != "" {
 				if err := utils.OpenBrowser(url); err != nil {
+					log.Printf("Failed to open URL: %v", err)
+				}
+			}
+		} else if account, ok := selected.(AccountItem); ok {
+			if account.URL != "" {
+				if err := utils.OpenBrowser(account.URL); err != nil {
 					log.Printf("Failed to open URL: %v", err)
 				}
 			}
