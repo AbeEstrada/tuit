@@ -10,7 +10,7 @@ import (
 
 type HomeView struct {
 	app         *App
-	left        *TimelineView
+	timeline    *TimelineView
 	statusView  *StatusView
 	accountView *AccountView
 	focusedView int
@@ -23,16 +23,16 @@ func CreateHomeView() *HomeView {
 		accountView: CreateAccountView(),
 		focusedView: 0,
 	}
-	leftView := CreateTimelineView()
-	leftView.onLoadMore = v.loadMoreTimeline
-	v.left = leftView
+	timelineView := CreateTimelineView()
+	timelineView.onLoadMore = v.loadMoreTimeline
+	v.timeline = timelineView
 
 	return v
 }
 
 func (v *HomeView) SetApp(app *App) {
 	v.app = app
-	v.left.SetApp(app)
+	v.timeline.SetApp(app)
 	v.statusView.SetApp(app)
 	v.accountView.SetApp(app)
 }
@@ -52,7 +52,7 @@ func (v *HomeView) getHomeTimeline() {
 		for i, s := range statuses {
 			items[i] = StatusItem{Status: s}
 		}
-		v.left.AddTimeline(items, nil, nil)
+		v.timeline.AddTimeline(items, nil, nil)
 		v.app.vx.PostEvent(vaxis.Redraw{})
 	}
 
@@ -60,7 +60,7 @@ func (v *HomeView) getHomeTimeline() {
 }
 
 func (v *HomeView) getStatusContext() {
-	selectedItem := v.left.SelectedItem()
+	selectedItem := v.timeline.SelectedItem()
 
 	item, ok := selectedItem.(StatusItem)
 	if !ok || item.Status == nil {
@@ -91,7 +91,7 @@ func (v *HomeView) getStatusContext() {
 				items = append(items, StatusItem{Status: status})
 			}
 
-			v.left.AddTimeline(items, StatusItem{Status: original}, nil)
+			v.timeline.AddTimeline(items, StatusItem{Status: original}, nil)
 			v.app.vx.PostEvent(vaxis.Redraw{})
 		}
 	}
@@ -103,12 +103,12 @@ func (v *HomeView) reloadHomeTimeline() {
 	v.app.SetLoading(true)
 
 	index := 0 // Home
-	if index >= len(v.left.timelines) {
+	if index >= len(v.timeline.timelines) {
 		v.app.SetLoading(false)
 		return
 	}
 
-	timeline := &v.left.timelines[index]
+	timeline := &v.timeline.timelines[index]
 	items := timeline.Items
 
 	if len(items) == 0 {
@@ -134,7 +134,7 @@ func (v *HomeView) reloadHomeTimeline() {
 		for i, s := range newStatuses {
 			newItems[i] = StatusItem{Status: s}
 		}
-		v.left.PrependToTimeline(index, newItems)
+		v.timeline.PrependToTimeline(index, newItems)
 		v.app.vx.PostEvent(vaxis.Redraw{})
 	}
 	v.app.SetLoading(false)
@@ -143,13 +143,13 @@ func (v *HomeView) reloadHomeTimeline() {
 func (v *HomeView) loadMoreTimeline() {
 	v.app.SetLoading(true)
 
-	index := v.left.index
-	if index >= len(v.left.timelines) {
+	index := v.timeline.index
+	if index >= len(v.timeline.timelines) {
 		v.app.SetLoading(false)
 		return
 	}
 
-	timeline := &v.left.timelines[index]
+	timeline := &v.timeline.timelines[index]
 	items := timeline.Items
 
 	if len(items) == 0 {
@@ -185,7 +185,7 @@ func (v *HomeView) loadMoreTimeline() {
 		for i, s := range newStatuses {
 			newItems[i] = StatusItem{Status: s}
 		}
-		v.left.AppendToTimeline(index, newItems)
+		v.timeline.AppendToTimeline(index, newItems)
 		v.app.vx.PostEvent(vaxis.Redraw{})
 	}
 
@@ -193,7 +193,7 @@ func (v *HomeView) loadMoreTimeline() {
 }
 
 func (v *HomeView) getAccountAndTimeline() {
-	selectedItem := v.left.SelectedItem()
+	selectedItem := v.timeline.SelectedItem()
 
 	item, ok := selectedItem.(StatusItem)
 	if !ok || item.Status == nil {
@@ -223,7 +223,7 @@ func (v *HomeView) getAccountAndTimeline() {
 				items = append(items, StatusItem{Status: s})
 			}
 
-			v.left.AddTimeline(items, StatusItem{Status: original}, account)
+			v.timeline.AddTimeline(items, StatusItem{Status: original}, account)
 		}
 	}
 
@@ -255,18 +255,18 @@ func (v *HomeView) startStreaming() {
 func (v *HomeView) handleStreamingEvent(event mastodon.Event) {
 	switch e := event.(type) {
 	case *mastodon.UpdateEvent:
-		v.left.PrependToTimeline(0, []TimelineItem{StatusItem{Status: e.Status}})
+		v.timeline.PrependToTimeline(0, []TimelineItem{StatusItem{Status: e.Status}})
 		v.app.vx.PostEvent(vaxis.Redraw{})
 
 	case *mastodon.UpdateEditEvent:
-		v.left.UpdateEdit(0, StatusItem{Status: e.Status})
+		v.timeline.UpdateEdit(0, StatusItem{Status: e.Status})
 		v.app.vx.PostEvent(vaxis.Redraw{})
 
 	case *mastodon.NotificationEvent:
 		log.Printf("New Notification [%s] from @%s\n", e.Notification.Type, e.Notification.Account.Acct)
 
 	case *mastodon.DeleteEvent:
-		v.left.DeleteFromTimeline(0, e.ID)
+		v.timeline.DeleteFromTimeline(0, e.ID)
 		v.app.vx.PostEvent(vaxis.Redraw{})
 
 	case *mastodon.ErrorEvent:
@@ -297,26 +297,26 @@ func (v *HomeView) Draw(win vaxis.Window) {
 	total := leftRatio + rightRatio
 	split := width * leftRatio / total
 
-	leftWin := win.New(0, 1, split, height)
-	rightWidth := max(0, width-split-2)
-	rightWin := win.New(split+2, 1, rightWidth, height)
+	timelineWin := win.New(0, 1, split, height)
+	detailWidth := max(0, width-split-2)
+	detailWin := win.New(split+2, 1, detailWidth, height)
 
-	v.left.Draw(leftWin, v.focusedView == 0)
+	v.timeline.Draw(timelineWin, v.focusedView == 0)
 
-	selectedItem := v.left.SelectedItem()
-	isRightFocused := v.focusedView == 1
+	selectedItem := v.timeline.SelectedItem()
+	isDetailFocused := v.focusedView == 1
 
 	if selectedItem != nil {
 		switch item := selectedItem.(type) {
 		case StatusItem:
-			v.statusView.Draw(rightWin, isRightFocused, item.Status)
+			v.statusView.Draw(detailWin, isDetailFocused, item.Status)
 		case AccountItem:
-			v.accountView.Draw(rightWin, isRightFocused, item.Account)
+			v.accountView.Draw(detailWin, isDetailFocused, item.Account)
 		default:
-			v.statusView.Draw(rightWin, isRightFocused, nil)
+			v.statusView.Draw(detailWin, isDetailFocused, nil)
 		}
 	} else {
-		v.statusView.Draw(rightWin, isRightFocused, nil)
+		v.statusView.Draw(detailWin, isDetailFocused, nil)
 	}
 
 	for row := 0; row < height-2; row++ {
@@ -343,17 +343,17 @@ func (v *HomeView) HandleKey(key vaxis.Key) {
 	} else if key.Matches('u') && !v.app.loading {
 		go v.getAccountAndTimeline()
 	} else if key.Matches('q') {
-		if len(v.left.timelines) <= 1 {
+		if len(v.timeline.timelines) <= 1 {
 			v.app.RequestQuit()
 		} else {
-			v.left.RemoveLastTimeline()
+			v.timeline.RemoveLastTimeline()
 		}
 		return
 	} else {
 		if v.focusedView == 0 {
-			v.left.HandleKey(key)
+			v.timeline.HandleKey(key)
 		} else {
-			selectedItem := v.left.SelectedItem()
+			selectedItem := v.timeline.SelectedItem()
 			if selectedItem != nil {
 				switch selectedItem.(type) {
 				case StatusItem:
