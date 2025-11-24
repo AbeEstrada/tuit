@@ -26,7 +26,7 @@ func (v *AccountView) Draw(win vaxis.Window, focused bool, account *mastodon.Acc
 		return
 	}
 
-	width, _ := win.Size()
+	width, height := win.Size()
 	y := 0
 
 	avatarWidth := 24
@@ -44,31 +44,70 @@ func (v *AccountView) Draw(win vaxis.Window, focused bool, account *mastodon.Acc
 	}
 
 	metaX := avatarWidth + 1
-	metaWin := win.New(metaX, y, width-metaX, avatarHeight)
+	metaY := 0
+	metaWin := win.New(metaX, metaY, width-metaX, avatarHeight)
 	metaWin.Println(
-		0,
+		metaY,
 		vaxis.Segment{
 			Text:  account.DisplayName,
 			Style: vaxis.Style{Attribute: vaxis.AttrBold},
 		},
 	)
+	metaY += 1
 	metaWin.Println(
-		1,
+		metaY,
 		vaxis.Segment{
 			Text:  fmt.Sprintf("@%s", account.Acct),
 			Style: vaxis.Style{Attribute: vaxis.AttrBold},
 		},
 	)
+	metaY += 1
 	if account.Bot {
 		metaWin.Println(
-			2,
+			metaY,
 			vaxis.Segment{
 				Text: "Automated",
 			},
 		)
+		metaY += 1
 	}
+	metaWin.Println(
+		metaY,
+		vaxis.Segment{
+			Text: fmt.Sprintf("Joined %s", account.CreatedAt.Local().Format("Jan 2, 2006")),
+		},
+	)
+	metaY += 2
+	metaWin.Println(
+		metaY,
+		vaxis.Segment{
+			Text: fmt.Sprintf("%s posts", utils.FormatNumber(account.StatusesCount)),
+		},
+	)
+	metaY += 1
+	metaWin.Println(
+		metaY,
+		vaxis.Segment{
+			Text: fmt.Sprintf("%s following", utils.FormatNumber(account.FollowingCount)),
+		},
+	)
+	metaY += 1
+	metaWin.Println(
+		metaY,
+		vaxis.Segment{
+			Text: fmt.Sprintf("%s followers", utils.FormatNumber(account.FollowersCount)),
+		},
+	)
+	metaY += 1
 
 	y += avatarHeight
+
+	contentHeight := height - y
+	contentWin := win.New(0, y, width, contentHeight)
+	content := utils.ParseStatus(account.Note, nil)
+	_, rows := contentWin.Wrap(content...)
+
+	y += rows
 
 }
 

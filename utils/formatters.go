@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"html"
 	"net/url"
 	"path"
@@ -21,6 +22,16 @@ func TitleCase(text string) string {
 func StripTags(s string) string {
 	re := regexp.MustCompile(`<[^>]*>`)
 	return re.ReplaceAllString(s, "")
+}
+
+func FormatNumber(n int64) string {
+	if n < 1000 {
+		return fmt.Sprintf("%d", n)
+	}
+	if n < 1000000 {
+		return fmt.Sprintf("%.1fk", float64(n)/1000)
+	}
+	return fmt.Sprintf("%.1fm", float64(n)/1000000)
 }
 
 // Parses an HTML string and converts it into a slice of styled segments
