@@ -16,10 +16,11 @@ import (
 )
 
 type GlobalImageCache struct {
-	mu      sync.RWMutex
-	cache   map[string]vaxis.Image
-	loading map[string]bool
-	vx      *vaxis.Vaxis
+	mu          sync.RWMutex
+	rawCache    map[string]image.Image
+	scaledCache map[string]vaxis.Image
+	loading     map[string]bool
+	vx          *vaxis.Vaxis
 }
 
 var ImageCache *GlobalImageCache
@@ -28,26 +29,69 @@ var once sync.Once
 func InitImageCache(vx *vaxis.Vaxis) {
 	once.Do(func() {
 		ImageCache = &GlobalImageCache{
-			cache:   make(map[string]vaxis.Image),
-			loading: make(map[string]bool),
-			vx:      vx,
+			rawCache:    make(map[string]image.Image),
+			scaledCache: make(map[string]vaxis.Image),
+			loading:     make(map[string]bool),
+			vx:          vx,
 		}
 	})
 }
 
-func (c *GlobalImageCache) Get(url string) (vaxis.Image, bool) {
+func (c *GlobalImageCache) Get(url string, width, height int) (vaxis.Image, bool) {
 	c.mu.RLock()
-	defer c.mu.RUnlock()
-	img, found := c.cache[url]
-	return img, found
+
+	cacheKey := fmt.Sprintf("%s|%d|%d", url, width, height)
+	if img, ok := c.scaledCache[cacheKey]; ok {
+		c.mu.RUnlock()
+		return img, true
+	}
+
+	rawImg, hasRaw := c.rawCache[url]
+	c.mu.RUnlock()
+
+	if !hasRaw {
+		c.LoadAsync(url)
+		return nil, false
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if img, ok := c.scaledCache[cacheKey]; ok {
+		return img, true
+	}
+
+	vxImage, err := c.vx.NewImage(rawImg)
+	if err != nil {
+		log.Printf("Error creating vaxis image from cached raw %s: %v", url, err)
+		return nil, false
+	}
+
+	originalBounds := rawImg.Bounds()
+	originalWidth, originalHeight := originalBounds.Dx(), originalBounds.Dy()
+
+	scaleFactor := math.Max(float64(width)/float64(originalWidth), float64(height)/float64(originalHeight))
+	scaledWidth := int(float64(originalWidth) * scaleFactor)
+	scaledHeight := int(float64(originalHeight) * scaleFactor)
+
+	vxImage.Resize(scaledWidth, scaledHeight)
+
+	c.scaledCache[cacheKey] = vxImage
+
+	return vxImage, true
 }
 
-func (c *GlobalImageCache) LoadAsync(url string, width, height int) {
+func (c *GlobalImageCache) LoadAsync(url string) {
 	c.mu.Lock()
 	if c.loading[url] {
 		c.mu.Unlock()
 		return
 	}
+	if _, ok := c.rawCache[url]; ok {
+		c.mu.Unlock()
+		return
+	}
+
 	c.loading[url] = true
 	c.mu.Unlock()
 
@@ -56,6 +100,7 @@ func (c *GlobalImageCache) LoadAsync(url string, width, height int) {
 			c.mu.Lock()
 			delete(c.loading, url)
 			c.mu.Unlock()
+			c.vx.PostEvent(vaxis.Redraw{})
 		}()
 
 		img, err := DownloadImage(url)
@@ -64,26 +109,9 @@ func (c *GlobalImageCache) LoadAsync(url string, width, height int) {
 			return
 		}
 
-		vxImage, err := c.vx.NewImage(img)
-		if err != nil {
-			log.Printf("Error creating vaxis image from %s: %v", url, err)
-			return
-		}
-
-		originalBounds := img.Bounds()
-		originalWidth, originalHeight := originalBounds.Dx(), originalBounds.Dy()
-
-		scaleFactor := math.Max(float64(width)/float64(originalWidth), float64(height)/float64(originalHeight))
-		scaledWidth := int(float64(originalWidth) * scaleFactor)
-		scaledHeight := int(float64(originalHeight) * scaleFactor)
-
-		vxImage.Resize(scaledWidth, scaledHeight)
-
 		c.mu.Lock()
-		c.cache[url] = vxImage
+		c.rawCache[url] = img
 		c.mu.Unlock()
-
-		c.vx.PostEvent(vaxis.Redraw{})
 	}()
 }
 

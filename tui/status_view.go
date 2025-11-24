@@ -47,14 +47,14 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 	avatarHeight := 3
 	avatarURL := displayStatus.Account.AvatarStatic
 
-	vxImage, cached := utils.ImageCache.Get(avatarURL)
+	vxImage, cached := utils.ImageCache.Get(avatarURL, avatarWidth, avatarHeight)
 	if cached {
 		if width > avatarWidth {
 			imgWin := win.New(0, headerY, avatarWidth, avatarHeight)
 			vxImage.Draw(imgWin)
 		}
 	} else {
-		utils.ImageCache.LoadAsync(avatarURL, avatarWidth, avatarHeight)
+		utils.ImageCache.LoadAsync(avatarURL)
 	}
 
 	metaX := avatarWidth + 1
@@ -167,8 +167,17 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 		if card.Image != "" {
 			imageURL := card.Image
 			mediaWidth := width
+			var calculatedHeight int
 
-			vxImage, cached := utils.ImageCache.Get(imageURL)
+			if card.Width > 0 {
+				aspectRatio := float64(card.Height) / float64(card.Width)
+				calculatedHeight = int(float64(mediaWidth) * aspectRatio * 0.5)
+				calculatedHeight = max(calculatedHeight, 1)
+			} else {
+				calculatedHeight = 10
+			}
+
+			vxImage, cached := utils.ImageCache.Get(imageURL, mediaWidth, calculatedHeight)
 			if cached {
 				_, mediaHeight := vxImage.CellSize()
 
@@ -179,17 +188,7 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 					contentY += mediaHeight
 				}
 			} else {
-				var calculatedHeight int
-
-				if card.Width > 0 {
-					aspectRatio := float64(card.Height) / float64(card.Width)
-					calculatedHeight = int(float64(mediaWidth) * aspectRatio * 0.5)
-					calculatedHeight = max(calculatedHeight, 1)
-				} else {
-					calculatedHeight = 10
-				}
-
-				utils.ImageCache.LoadAsync(imageURL, mediaWidth, calculatedHeight)
+				utils.ImageCache.LoadAsync(imageURL)
 			}
 		}
 
@@ -212,7 +211,18 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 				continue
 			}
 
-			vxImage, cached := utils.ImageCache.Get(imageURL)
+			var calculatedHeight int
+			imageMeta := media.Meta.Original
+
+			if imageMeta.Width > 0 {
+				aspectRatio := float64(imageMeta.Height) / float64(imageMeta.Width)
+				calculatedHeight = int(float64(mediaWidth) * aspectRatio * 0.5)
+				calculatedHeight = max(calculatedHeight, 1)
+			} else {
+				calculatedHeight = 10
+			}
+
+			vxImage, cached := utils.ImageCache.Get(imageURL, mediaWidth, calculatedHeight)
 			if cached {
 				_, mediaHeight := vxImage.CellSize()
 
@@ -221,18 +231,7 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 
 				contentY += mediaHeight
 			} else {
-				var calculatedHeight int
-				imageMeta := media.Meta.Original
-
-				if imageMeta.Width > 0 {
-					aspectRatio := float64(imageMeta.Height) / float64(imageMeta.Width)
-					calculatedHeight = int(float64(mediaWidth) * aspectRatio * 0.5)
-					calculatedHeight = max(calculatedHeight, 1)
-				} else {
-					calculatedHeight = 10
-				}
-
-				utils.ImageCache.LoadAsync(imageURL, mediaWidth, calculatedHeight)
+				utils.ImageCache.LoadAsync(imageURL)
 			}
 		}
 		contentY++
