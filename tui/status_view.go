@@ -203,6 +203,14 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 				contentY++
 			}
 
+			if media.Type == "video" || media.Type == "gifv" {
+				contentWin.PrintTruncate(
+					contentY,
+					vaxis.Segment{Text: "▶ "},
+				)
+				contentY += 1
+			}
+
 			imageURL := media.PreviewURL
 			if imageURL == "" {
 				imageURL = media.URL
