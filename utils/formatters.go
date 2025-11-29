@@ -34,6 +34,19 @@ func FormatNumber(n int64) string {
 	return fmt.Sprintf("%.1fm", float64(n)/1000000)
 }
 
+func IsValidURL(link string) bool {
+	if strings.TrimSpace(link) == "" {
+		return false
+	}
+
+	u, err := url.Parse(link)
+	if err != nil {
+		return false
+	}
+
+	return u.Scheme != "" && u.Host != ""
+}
+
 // Parses an HTML string and converts it into a slice of styled segments
 func ParseStatus(content string, tags []mastodon.Tag) []vaxis.Segment {
 	// Create a set of known tag names for efficient lookup

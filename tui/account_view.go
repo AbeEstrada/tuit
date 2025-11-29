@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"git.sr.ht/~rockorager/vaxis"
 	"github.com/AbeEstrada/tuit/utils"
@@ -101,6 +102,48 @@ func (v *AccountView) Draw(win vaxis.Window, focused bool, account *mastodon.Acc
 	metaY += 1
 
 	y += avatarHeight
+
+	fieldsWin := win.New(0, y, width, len(account.Fields))
+	for i, field := range account.Fields {
+		valueSegments := utils.ParseStatus(field.Value, nil)
+
+		var flatText strings.Builder
+		for _, seg := range valueSegments {
+			clean := strings.ReplaceAll(seg.Text, "\n", " ")
+			clean = strings.TrimSpace(clean)
+			if clean != "" {
+				flatText.WriteString(clean + " ")
+			}
+		}
+		flatValue := strings.TrimSpace(flatText.String())
+
+		verified := ""
+		verifiedStyle := vaxis.Style{}
+		if !field.VerifiedAt.IsZero() {
+			verified = "✓ "
+			verifiedStyle = vaxis.Style{Foreground: vaxis.IndexColor(2)}
+		}
+
+		valueStyle := vaxis.Style{}
+		if utils.IsValidURL(flatValue) {
+			valueStyle = vaxis.Style{
+				Hyperlink:      flatValue,
+				UnderlineStyle: vaxis.UnderlineSingle,
+			}
+		}
+
+		fieldsWin.Println(
+			i,
+			vaxis.Segment{Text: verified, Style: verifiedStyle},
+			vaxis.Segment{
+				Text:  fmt.Sprintf("%s: ", field.Name),
+				Style: vaxis.Style{Attribute: vaxis.AttrBold},
+			},
+			vaxis.Segment{Text: flatValue, Style: valueStyle},
+		)
+		y += 1
+	}
+	y += 1
 
 	contentHeight := height - y
 	contentWin := win.New(0, y, width, contentHeight)
