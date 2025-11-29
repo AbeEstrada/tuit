@@ -192,7 +192,7 @@ func (v *HomeView) loadMoreTimeline() {
 	v.app.SetLoading(false)
 }
 
-func (v *HomeView) getAccountAndTimeline() {
+func (v *HomeView) goToAccountTimeline(currentUser bool) {
 	selectedItem := v.timeline.SelectedItem()
 
 	item, ok := selectedItem.(StatusItem)
@@ -211,7 +211,15 @@ func (v *HomeView) getAccountAndTimeline() {
 
 	v.app.SetLoading(true)
 
-	account, err := v.app.client.GetAccount(context.Background(), original.Account.ID)
+	var account *mastodon.Account
+	var err error
+
+	if currentUser {
+		account, err = v.app.client.GetAccountCurrentUser(context.Background())
+	} else {
+		account, err = v.app.client.GetAccount(context.Background(), original.Account.ID)
+	}
+
 	if err == nil {
 		statuses, err := v.app.client.GetAccountStatuses(context.Background(), account.ID, &mastodon.Pagination{})
 		if err == nil {
@@ -341,7 +349,9 @@ func (v *HomeView) HandleKey(key vaxis.Key) {
 	} else if key.Matches('t') && !v.app.loading {
 		go v.getStatusContext()
 	} else if key.Matches('u') && !v.app.loading {
-		go v.getAccountAndTimeline()
+		go v.goToAccountTimeline(false)
+	} else if key.Matches('U') && !v.app.loading {
+		go v.goToAccountTimeline(true)
 	} else if key.Matches('q') {
 		if len(v.timeline.timelines) <= 1 {
 			v.app.RequestQuit()
