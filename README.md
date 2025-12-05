@@ -10,6 +10,10 @@ TUI Mastodon Client
   <img width="1808" height="1064" alt="Screenshot" src="https://github.com/user-attachments/assets/270db4d3-49a6-4eae-8516-313b9fad15f1" />
 </p>
 
+<p align="center">
+  <img width="1810" height="1036" src="https://github.com/user-attachments/assets/7be999fd-375c-4ba4-99ec-10e80dae4063" />
+</p>
+
 ## Build and Installation
 
 This project uses [`just`](https://github.com/casey/just) as a command runner and requires [Go](https://golang.org/) for building. Below are the available commands:
