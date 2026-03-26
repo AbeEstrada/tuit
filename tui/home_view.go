@@ -9,12 +9,13 @@ import (
 )
 
 type HomeView struct {
-	app         *App
-	timeline    *TimelineView
-	statusView  *StatusView
-	accountView *AccountView
-	focusedView int
-	isStreaming bool
+	app            *App
+	timeline       *TimelineView
+	statusView     *StatusView
+	accountView    *AccountView
+	focusedView    int
+	isStreaming    bool
+	lastSelectedID mastodon.ID
 }
 
 func CreateHomeView() *HomeView {
@@ -315,6 +316,11 @@ func (v *HomeView) Draw(win vaxis.Window) {
 	isDetailFocused := v.focusedView == 1
 
 	if selectedItem != nil {
+		currentID := selectedItem.ID()
+		if currentID != v.lastSelectedID {
+			v.statusView.ResetScroll()
+			v.lastSelectedID = currentID
+		}
 		switch item := selectedItem.(type) {
 		case StatusItem:
 			v.statusView.Draw(detailWin, isDetailFocused, item.Status)

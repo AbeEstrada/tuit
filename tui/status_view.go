@@ -10,7 +10,10 @@ import (
 )
 
 type StatusView struct {
-	app *App
+	app          *App
+	scrollOffset int
+	totalHeight  int
+	viewHeight   int
 }
 
 func CreateStatusView() *StatusView {
@@ -21,24 +24,32 @@ func (v *StatusView) SetApp(app *App) {
 	v.app = app
 }
 
+func imageVisible(screenY, imgHeight, winHeight int) bool {
+	return screenY >= 0 && screenY+imgHeight <= winHeight
+}
+
 func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Status) {
 	if status == nil {
+		v.totalHeight = 0
 		win.Println(0, vaxis.Segment{Text: ""})
 		return
 	}
 
 	width, height := win.Size()
+	v.viewHeight = height
+	so := v.scrollOffset
+
 	y := 0
 	displayStatus := status
 
 	if status.Reblog != nil {
-		win.Println(y, vaxis.Segment{
+		win.Println(y-so, vaxis.Segment{
 			Text: fmt.Sprintf("Boosted by @%s", status.Account.Acct),
 		})
 		y += 2
 		displayStatus = status.Reblog
 	} else if status.InReplyToID != nil {
-		win.Println(y, vaxis.Segment{Text: "Continued thread"})
+		win.Println(y-so, vaxis.Segment{Text: "Continued thread"})
 		y += 2
 	}
 
@@ -47,10 +58,11 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 	avatarHeight := 3
 	avatarURL := displayStatus.Account.AvatarStatic
 
+	screenHeaderY := headerY - so
 	vxImage, cached := utils.ImageCache.Get(avatarURL, avatarWidth, avatarHeight)
 	if cached {
-		if width > avatarWidth {
-			imgWin := win.New(0, headerY, avatarWidth, avatarHeight)
+		if width > avatarWidth && imageVisible(screenHeaderY, avatarHeight, height) {
+			imgWin := win.New(0, screenHeaderY, avatarWidth, avatarHeight)
 			vxImage.Draw(imgWin)
 		}
 	} else {
@@ -58,48 +70,56 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 	}
 
 	metaX := avatarWidth + 1
-	metaWin := win.New(metaX, headerY, width-metaX, avatarHeight)
 
 	var isBot string
 	if displayStatus.Account.Bot {
 		isBot = " · Automated"
 	}
-
-	metaWin.Println(
-		0,
-		vaxis.Segment{
-			Text:  displayStatus.Account.DisplayName,
-			Style: vaxis.Style{Attribute: vaxis.AttrBold},
-		},
-		vaxis.Segment{
-			Text:  " (" + displayStatus.Account.Acct + ")",
-			Style: vaxis.Style{Attribute: vaxis.AttrBold},
-		},
-		vaxis.Segment{Text: isBot},
-	)
-
 	timeLine := fmt.Sprintf("%s · %s", utils.FormatTimeSince(displayStatus.CreatedAt.Local()), utils.TitleCase(displayStatus.Visibility))
-	metaWin.Println(1, vaxis.Segment{Text: timeLine})
-
 	statsLine := fmt.Sprintf("%d replies · %d boosts · %d favorites", displayStatus.RepliesCount, displayStatus.ReblogsCount, displayStatus.FavouritesCount)
-	metaWin.Println(2, vaxis.Segment{Text: statsLine})
+
+	for row := 0; row < avatarHeight; row++ {
+		screenRow := screenHeaderY + row
+		if screenRow < 0 || screenRow >= height {
+			continue
+		}
+		lineWin := win.New(metaX, screenRow, width-metaX, 1)
+		switch row {
+		case 0:
+			lineWin.Println(0,
+				vaxis.Segment{
+					Text:  displayStatus.Account.DisplayName,
+					Style: vaxis.Style{Attribute: vaxis.AttrBold},
+				},
+				vaxis.Segment{
+					Text:  " (" + displayStatus.Account.Acct + ")",
+					Style: vaxis.Style{Attribute: vaxis.AttrBold},
+				},
+				vaxis.Segment{Text: isBot},
+			)
+		case 1:
+			lineWin.Println(0, vaxis.Segment{Text: timeLine})
+		case 2:
+			lineWin.Println(0, vaxis.Segment{Text: statsLine})
+		}
+	}
 
 	y = headerY + avatarHeight + 1
 
-	contentHeight := height - y
-	if contentHeight <= 0 {
-		return
-	}
-
 	if displayStatus.Sensitive {
-		win.Println(y, vaxis.Segment{Text: "⚠ Sensitive"})
+		win.Println(y-so, vaxis.Segment{Text: "⚠ Sensitive"})
 		y += 2
 	}
 
-	contentWin := win.New(0, y, width, contentHeight)
 	content := utils.ParseStatus(displayStatus.Content, displayStatus.Tags)
-	_, rows := contentWin.Wrap(content...)
+	measureWin := win.New(0, -height*2, width, height*4)
+	_, rows := measureWin.Wrap(content...)
 
+	screenContentY := y - so
+	contentWin := win.New(0, screenContentY, width, height*4)
+	contentWin.Wrap(content...)
+
+	// contentY tracks logical rows within the content area (after text)
 	contentY := rows
 
 	if displayStatus.Poll != nil {
@@ -180,13 +200,14 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 			vxImage, cached := utils.ImageCache.Get(imageURL, mediaWidth, calculatedHeight)
 			if cached {
 				_, mediaHeight := vxImage.CellSize()
+				imgScreenY := screenContentY + contentY
 
-				if contentY+mediaHeight < contentHeight {
-					imgWin := contentWin.New(0, contentY, mediaWidth, mediaHeight)
+				if imageVisible(imgScreenY, mediaHeight, height) {
+					imgWin := win.New(0, imgScreenY, mediaWidth, mediaHeight)
 					vxImage.Draw(imgWin)
-
-					contentY += mediaHeight
 				}
+
+				contentY += mediaHeight
 			} else {
 				utils.ImageCache.LoadAsync(imageURL)
 			}
@@ -233,9 +254,12 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 			vxImage, cached := utils.ImageCache.Get(imageURL, mediaWidth, calculatedHeight)
 			if cached {
 				_, mediaHeight := vxImage.CellSize()
+				imgScreenY := screenContentY + contentY
 
-				imgWin := contentWin.New(0, contentY, mediaWidth, mediaHeight)
-				vxImage.Draw(imgWin)
+				if imageVisible(imgScreenY, mediaHeight, height) {
+					imgWin := win.New(0, imgScreenY, mediaWidth, mediaHeight)
+					vxImage.Draw(imgWin)
+				}
 
 				contentY += mediaHeight
 			} else {
@@ -245,6 +269,29 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 		contentY++
 	}
 
+	v.totalHeight = y + contentY
 }
 
-func (v *StatusView) HandleKey(key vaxis.Key) {}
+func (v *StatusView) ResetScroll() {
+	v.scrollOffset = 0
+}
+
+func (v *StatusView) HandleKey(key vaxis.Key) {
+	if v.totalHeight <= v.viewHeight {
+		return
+	}
+	switch {
+	case key.Matches('j'):
+		if v.scrollOffset < v.totalHeight-v.viewHeight {
+			v.scrollOffset++
+		}
+	case key.Matches('k'):
+		if v.scrollOffset > 0 {
+			v.scrollOffset--
+		}
+	case key.Matches('g'):
+		v.scrollOffset = 0
+	case key.Matches('G'):
+		v.scrollOffset = v.totalHeight - v.viewHeight
+	}
+}
