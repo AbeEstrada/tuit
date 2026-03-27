@@ -8,19 +8,22 @@ import (
 
 	"git.sr.ht/~rockorager/vaxis"
 	"github.com/AbeEstrada/tuit/utils"
+	"github.com/mattn/go-mastodon"
 )
 
 type TimelineView struct {
-	app        *App
-	timelines  []Timeline
-	index      int
-	onLoadMore func()
+	app          *App
+	timelines    []Timeline
+	index        int
+	onLoadMore   func()
+	readStatuses map[mastodon.ID]bool
 }
 
 func CreateTimelineView() *TimelineView {
 	return &TimelineView{
-		timelines: []Timeline{},
-		index:     0,
+		timelines:    []Timeline{},
+		index:        0,
+		readStatuses: make(map[mastodon.ID]bool),
 	}
 }
 
@@ -86,16 +89,18 @@ func (v *TimelineView) Draw(win vaxis.Window, focused bool) {
 			continue
 		}
 
-		selectedStyle := vaxis.Style{}
-		if item.ID() == selectedID && focused {
-			selectedStyle = vaxis.Style{
-				Attribute: vaxis.AttrReverse,
-			}
+		var attr vaxis.AttributeMask
+		isSelected := item.ID() == selectedID && focused
+		if v.readStatuses[item.ID()] && !isSelected {
+			attr |= vaxis.AttrDim
+		}
+		if isSelected {
+			attr |= vaxis.AttrReverse
 		}
 
 		win.Println(y, vaxis.Segment{
 			Text:  displayText,
-			Style: selectedStyle,
+			Style: vaxis.Style{Attribute: attr},
 		})
 		y++
 	}
@@ -219,4 +224,5 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 	if selected == nil || newSelected.ID() != selected.ID() {
 		v.timelines[v.index].Selected = newSelected
 	}
+	v.readStatuses[newSelected.ID()] = true
 }

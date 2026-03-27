@@ -41,6 +41,10 @@ func (v *TimelineView) AddTimeline(items []TimelineItem, selected TimelineItem, 
 		t.Account = account
 	}
 
+	if selectedItem != nil {
+		v.readStatuses[selectedItem.ID()] = true
+	}
+
 	v.timelines = append(v.timelines, t)
 	v.index = len(v.timelines) - 1
 	v.setTitle()
