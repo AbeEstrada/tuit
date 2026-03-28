@@ -189,6 +189,14 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 			} else if status.Card != nil && status.Card.URL != "" {
 				url = status.Card.URL
 			}
+			if url == "" {
+				if status.Reblog != nil {
+					url = utils.ExtractFirstURL(status.Reblog.Content)
+				}
+				if url == "" {
+					url = utils.ExtractFirstURL(status.Content)
+				}
+			}
 			if url != "" {
 				if err := utils.OpenBrowser(url); err != nil {
 					log.Printf("Failed to open URL: %v", err)

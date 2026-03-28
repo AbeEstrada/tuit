@@ -34,6 +34,17 @@ func FormatNumber(n int64) string {
 	return fmt.Sprintf("%.1fm", float64(n)/1000000)
 }
 
+func ExtractFirstURL(content string) string {
+	hrefRegex := regexp.MustCompile(`href="([^"]*)"`)
+	matches := hrefRegex.FindAllStringSubmatch(content, -1)
+	for _, match := range matches {
+		if len(match) > 1 && IsValidURL(match[1]) {
+			return match[1]
+		}
+	}
+	return ""
+}
+
 func IsValidURL(link string) bool {
 	if strings.TrimSpace(link) == "" {
 		return false
