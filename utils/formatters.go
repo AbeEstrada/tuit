@@ -34,6 +34,20 @@ func FormatNumber(n int64) string {
 	return fmt.Sprintf("%.1fm", float64(n)/1000000)
 }
 
+func ExtractAllURLs(content string) []string {
+	hrefRegex := regexp.MustCompile(`href="([^"]*)"`)
+	matches := hrefRegex.FindAllStringSubmatch(content, -1)
+	seen := map[string]bool{}
+	var urls []string
+	for _, match := range matches {
+		if len(match) > 1 && IsValidURL(match[1]) && !seen[match[1]] {
+			seen[match[1]] = true
+			urls = append(urls, match[1])
+		}
+	}
+	return urls
+}
+
 func ExtractFirstURL(content string) string {
 	hrefRegex := regexp.MustCompile(`href="([^"]*)"`)
 	matches := hrefRegex.FindAllStringSubmatch(content, -1)

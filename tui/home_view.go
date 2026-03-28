@@ -3,8 +3,10 @@ package tui
 import (
 	"context"
 	"log"
+	"slices"
 
 	"git.sr.ht/~rockorager/vaxis"
+	"github.com/AbeEstrada/tuit/utils"
 	"github.com/mattn/go-mastodon"
 )
 
@@ -13,8 +15,10 @@ type HomeView struct {
 	timeline       *TimelineView
 	statusView     *StatusView
 	accountView    *AccountView
+	linksView      *LinksView
 	focusedView    int
 	isStreaming    bool
+	showingLinks   bool
 	lastSelectedID mastodon.ID
 }
 
@@ -22,6 +26,7 @@ func CreateHomeView() *HomeView {
 	v := &HomeView{
 		statusView:  CreateStatusView(),
 		accountView: CreateAccountView(),
+		linksView:   CreateLinksView(),
 		focusedView: 0,
 	}
 	timelineView := CreateTimelineView()
@@ -286,6 +291,22 @@ func (v *HomeView) handleStreamingEvent(event mastodon.Event) {
 	}
 }
 
+func (v *HomeView) selectedStatusLinks() []string {
+	item, ok := v.timeline.SelectedItem().(StatusItem)
+	if !ok || item.Status == nil {
+		return nil
+	}
+	status := item.Status
+	if status.Reblog != nil {
+		status = status.Reblog
+	}
+	links := utils.ExtractAllURLs(status.Content)
+	if status.Card != nil && status.Card.URL != "" && !slices.Contains(links, status.Card.URL) {
+		links = append(links, status.Card.URL)
+	}
+	return links
+}
+
 func (v *HomeView) Draw(win vaxis.Window) {
 	var (
 		leftRatio  = 2
@@ -315,7 +336,9 @@ func (v *HomeView) Draw(win vaxis.Window) {
 	selectedItem := v.timeline.SelectedItem()
 	isDetailFocused := v.focusedView == 1
 
-	if selectedItem != nil {
+	if v.showingLinks {
+		v.linksView.Draw(detailWin, v.focusedView == 1)
+	} else if selectedItem != nil {
 		currentID := selectedItem.ID()
 		if currentID != v.lastSelectedID {
 			v.statusView.ResetScroll()
@@ -344,6 +367,34 @@ func (v *HomeView) Draw(win vaxis.Window) {
 }
 
 func (v *HomeView) HandleKey(key vaxis.Key) {
+	if v.showingLinks {
+		if key.Matches('h') {
+			v.focusedView = 0
+			return
+		}
+		if key.Matches('l') {
+			v.focusedView = 1
+			return
+		}
+		if v.focusedView == 0 {
+			prevID := v.timeline.SelectedItem().ID()
+			v.timeline.HandleKey(key)
+			if item := v.timeline.SelectedItem(); item != nil && item.ID() != prevID {
+				v.showingLinks = false
+			}
+			return
+		}
+		result := v.linksView.HandleKey(key)
+		switch result {
+		case "open":
+			if err := utils.OpenBrowser(v.linksView.links[v.linksView.selected]); err != nil {
+				log.Printf("Failed to open URL: %v", err)
+			}
+		case "close":
+			v.showingLinks = false
+		}
+		return
+	}
 	if key.Matches(vaxis.KeyTab) {
 		v.focusedView = (v.focusedView + 1) % 2
 	} else if key.Matches('h') {
@@ -358,6 +409,13 @@ func (v *HomeView) HandleKey(key vaxis.Key) {
 		go v.goToAccountTimeline(false)
 	} else if key.Matches('U') && !v.app.loading {
 		go v.goToAccountTimeline(true)
+	} else if key.Matches('i') {
+		links := v.selectedStatusLinks()
+		if len(links) > 0 {
+			v.linksView.SetLinks(links)
+			v.showingLinks = true
+			v.focusedView = 1
+		}
 	} else if key.Matches('q') {
 		if len(v.timeline.timelines) <= 1 {
 			v.app.RequestQuit()
