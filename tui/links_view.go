@@ -6,8 +6,13 @@ import (
 	"git.sr.ht/~rockorager/vaxis"
 )
 
+type LinkItem struct {
+	Label string
+	URL   string
+}
+
 type LinksView struct {
-	links    []string
+	links    []LinkItem
 	selected int
 }
 
@@ -15,7 +20,7 @@ func CreateLinksView() *LinksView {
 	return &LinksView{}
 }
 
-func (v *LinksView) SetLinks(links []string) {
+func (v *LinksView) SetLinks(links []LinkItem) {
 	v.links = links
 	v.selected = 0
 }
@@ -28,15 +33,19 @@ func (v *LinksView) Draw(win vaxis.Window, focused bool) {
 		Style: vaxis.Style{Attribute: vaxis.AttrBold},
 	})
 
-	for i, link := range v.links {
+	for i, item := range v.links {
 		y := i + 2
 		if y >= height-1 {
 			break
 		}
 
-		label := fmt.Sprintf(" %d. %s", i+1, link)
-		if len(label) > width {
-			label = label[:width-1] + "…"
+		label := item.Label
+		if label == "" {
+			label = item.URL
+		}
+		line := fmt.Sprintf(" %d. %s", i+1, label)
+		if len(line) > width {
+			line = line[:width-1] + "…"
 		}
 
 		var attr vaxis.AttributeMask
@@ -44,7 +53,7 @@ func (v *LinksView) Draw(win vaxis.Window, focused bool) {
 			attr = vaxis.AttrReverse
 		}
 		win.Println(y, vaxis.Segment{
-			Text:  label,
+			Text:  line,
 			Style: vaxis.Style{Attribute: attr},
 		})
 	}
@@ -66,7 +75,7 @@ func (v *LinksView) HandleKey(key vaxis.Key) string {
 		return "close"
 	default:
 		if key.Keycode >= '1' && key.Keycode <= '9' {
-			idx := int(key.Keycode-'1')
+			idx := int(key.Keycode - '1')
 			if idx < len(v.links) {
 				v.selected = idx
 				return "open"

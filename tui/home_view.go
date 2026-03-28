@@ -3,7 +3,6 @@ package tui
 import (
 	"context"
 	"log"
-	"slices"
 
 	"git.sr.ht/~rockorager/vaxis"
 	"github.com/AbeEstrada/tuit/utils"
@@ -291,7 +290,7 @@ func (v *HomeView) handleStreamingEvent(event mastodon.Event) {
 	}
 }
 
-func (v *HomeView) selectedStatusLinks() []string {
+func (v *HomeView) selectedStatusLinks() []LinkItem {
 	item, ok := v.timeline.SelectedItem().(StatusItem)
 	if !ok || item.Status == nil {
 		return nil
@@ -300,11 +299,37 @@ func (v *HomeView) selectedStatusLinks() []string {
 	if status.Reblog != nil {
 		status = status.Reblog
 	}
-	links := utils.ExtractAllURLs(status.Content)
-	if status.Card != nil && status.Card.URL != "" && !slices.Contains(links, status.Card.URL) {
-		links = append(links, status.Card.URL)
+	var items []LinkItem
+	seen := map[string]bool{}
+	for _, u := range utils.ExtractAllURLs(status.Content) {
+		if !seen[u] {
+			seen[u] = true
+			items = append(items, LinkItem{Label: u, URL: u})
+		}
 	}
-	return links
+	if status.Card != nil && status.Card.URL != "" && !seen[status.Card.URL] {
+		seen[status.Card.URL] = true
+		items = append(items, LinkItem{Label: status.Card.URL, URL: status.Card.URL})
+	}
+	for _, att := range status.MediaAttachments {
+		if att.URL == "" || seen[att.URL] {
+			continue
+		}
+		if att.Type != "image" && att.Type != "video" && att.Type != "gifv" {
+			continue
+		}
+		seen[att.URL] = true
+		label := att.Description
+		if label == "" {
+			if att.Type == "image" {
+				label = "[image]"
+			} else {
+				label = "[video]"
+			}
+		}
+		items = append(items, LinkItem{Label: label, URL: att.URL})
+	}
+	return items
 }
 
 func (v *HomeView) Draw(win vaxis.Window) {
@@ -387,7 +412,7 @@ func (v *HomeView) HandleKey(key vaxis.Key) {
 		result := v.linksView.HandleKey(key)
 		switch result {
 		case "open":
-			if err := utils.OpenBrowser(v.linksView.links[v.linksView.selected]); err != nil {
+			if err := utils.OpenBrowser(v.linksView.links[v.linksView.selected].URL); err != nil {
 				log.Printf("Failed to open URL: %v", err)
 			}
 		case "close":
