@@ -64,6 +64,14 @@ func (v *LinksView) HandleKey(key vaxis.Key) string {
 		return "open"
 	case key.Matches('q'):
 		return "close"
+	default:
+		if key.Keycode >= '1' && key.Keycode <= '9' {
+			idx := int(key.Keycode-'1')
+			if idx < len(v.links) {
+				v.selected = idx
+				return "open"
+			}
+		}
 	}
 	return ""
 }
