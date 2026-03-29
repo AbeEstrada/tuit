@@ -36,6 +36,8 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 	}
 
 	width, height := win.Size()
+	height = height - 1
+	win = win.New(0, 0, width, height)
 	v.viewHeight = height
 	so := v.scrollOffset
 
