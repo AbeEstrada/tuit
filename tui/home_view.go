@@ -277,6 +277,8 @@ func (v *HomeView) handleStreamingEvent(event mastodon.Event) {
 
 	case *mastodon.NotificationEvent:
 		log.Printf("New Notification [%s] from @%s\n", e.Notification.Type, e.Notification.Account.Acct)
+		v.app.header.badge++
+		v.app.vx.PostEvent(vaxis.Redraw{})
 
 	case *mastodon.DeleteEvent:
 		v.timeline.DeleteFromTimeline(0, e.ID)
