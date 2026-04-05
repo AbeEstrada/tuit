@@ -36,6 +36,7 @@ func (v *TimelineView) setTitle() {
 		return
 	}
 	timeline := &v.timelines[v.index]
+	v.app.header.SetBadgeVisible(v.index == 0)
 	switch {
 	case v.index == 0:
 		v.app.header.SetText("Home")

@@ -8,12 +8,13 @@ import (
 )
 
 type Header struct {
-	text  string
-	badge int
+	text        string
+	badge       int
+	showBadge   bool
 }
 
 func CreateHeader() *Header {
-	return &Header{}
+	return &Header{showBadge: true}
 }
 
 func (h *Header) SetText(text string) {
@@ -22,6 +23,10 @@ func (h *Header) SetText(text string) {
 
 func (h *Header) SetBadge(n int) {
 	h.badge = n
+}
+
+func (h *Header) SetBadgeVisible(visible bool) {
+	h.showBadge = visible
 }
 
 func (h *Header) Draw(win vaxis.Window) {
@@ -33,7 +38,7 @@ func (h *Header) Draw(win vaxis.Window) {
 		{Text: " "},
 		{Text: h.text},
 	}
-	if h.badge > 0 {
+	if h.badge > 0 && h.showBadge {
 		segments = append(segments, vaxis.Segment{
 			Text:  fmt.Sprintf(" [%d]", h.badge),
 			Style: bold,

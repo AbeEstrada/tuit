@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"git.sr.ht/~rockorager/vaxis"
+	"github.com/AbeEstrada/tuit/api"
 	"github.com/AbeEstrada/tuit/auth"
 	"github.com/AbeEstrada/tuit/config"
 	"github.com/AbeEstrada/tuit/utils"
@@ -12,16 +13,17 @@ import (
 )
 
 type App struct {
-	vx       *vaxis.Vaxis
-	views    map[string]View
-	view     View
-	header   *Header
-	footer   *Footer
-	showQuit bool
-	running  bool
-	loading  bool
-	config   *config.Config
-	client   *mastodon.Client
+	vx           *vaxis.Vaxis
+	views        map[string]View
+	view         View
+	header       *Header
+	footer       *Footer
+	showQuit     bool
+	running      bool
+	loading      bool
+	config       *config.Config
+	client       *mastodon.Client
+	customClient *api.Client
 }
 
 func CreateApp() (*App, error) {
@@ -137,11 +139,24 @@ func (app *App) initClient() {
 	}
 
 	app.client = client
+	app.customClient = api.NewClient(client)
 
 	if app.view != nil {
 		app.view.OnActivate()
 	}
 	app.SetLoading(false)
+
+	go app.fetchUnreadNotifications()
+}
+
+func (app *App) fetchUnreadNotifications() {
+	count, err := app.customClient.GetNotificationsUnreadCount(context.Background())
+	if err != nil {
+		log.Printf("Failed to fetch unread notifications: %v", err)
+		return
+	}
+	app.header.SetBadge(count)
+	app.vx.PostEvent(vaxis.Redraw{})
 }
 
 func (app *App) handleEvent() {
