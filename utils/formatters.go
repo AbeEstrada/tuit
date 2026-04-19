@@ -59,6 +59,27 @@ func ExtractFirstURL(content string) string {
 	return ""
 }
 
+func IsTagLink(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	return strings.HasPrefix(u.Path, "/tags/")
+}
+
+func ExtractFirstExternalURL(content string) string {
+	urls := ExtractAllURLs(content)
+	for _, u := range urls {
+		if !IsTagLink(u) {
+			return u
+		}
+	}
+	if len(urls) > 0 {
+		return urls[0]
+	}
+	return ""
+}
+
 func IsValidURL(link string) bool {
 	if strings.TrimSpace(link) == "" {
 		return false

@@ -192,10 +192,10 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 			}
 			if url == "" {
 				if status.Reblog != nil {
-					url = utils.ExtractFirstURL(status.Reblog.Content)
+					url = utils.ExtractFirstExternalURL(status.Reblog.Content)
 				}
 				if url == "" {
-					url = utils.ExtractFirstURL(status.Content)
+					url = utils.ExtractFirstExternalURL(status.Content)
 				}
 			}
 			if url != "" {
