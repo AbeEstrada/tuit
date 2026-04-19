@@ -3,6 +3,9 @@ package tui
 import (
 	"context"
 	"log"
+	"net/url"
+	"sort"
+	"strings"
 
 	"git.sr.ht/~rockorager/vaxis"
 	"github.com/AbeEstrada/tuit/utils"
@@ -331,7 +334,18 @@ func (v *HomeView) selectedStatusLinks() []LinkItem {
 		}
 		items = append(items, LinkItem{Label: label, URL: att.URL})
 	}
+	sort.SliceStable(items, func(i, j int) bool {
+		return isTagLink(items[j].URL) && !isTagLink(items[i].URL)
+	})
 	return items
+}
+
+func isTagLink(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	return strings.HasPrefix(u.Path, "/tags/")
 }
 
 func (v *HomeView) Draw(win vaxis.Window) {
