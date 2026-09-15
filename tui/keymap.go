@@ -44,6 +44,7 @@ const (
 	ActLists         Action = "lists"
 	ActHashtag       Action = "hashtag"
 	ActSearch        Action = "search"
+	ActUser          Action = "user"
 	ActFavourite     Action = "favourite"
 	ActBoost         Action = "boost"
 	ActBookmark      Action = "bookmark"
@@ -87,6 +88,7 @@ var defaultKeys = map[Action][]string{
 	ActLists:         {"L"},
 	ActHashtag:       {"#"},
 	ActSearch:        {"/"},
+	ActUser:          {"w"},
 	ActFavourite:     {"f"},
 	ActBoost:         {"b"},
 	ActBookmark:      {"s"},
@@ -132,6 +134,7 @@ var helpEntries = []HelpEntry{
 	{"Timelines", ActLists, "Choose one of your lists", ""},
 	{"Timelines", ActHashtag, "Open a hashtag timeline", ""},
 	{"Timelines", ActSearch, "Search statuses and accounts", ""},
+	{"Timelines", ActUser, "Go directly to a user account", ""},
 	{"Actions", ActFavourite, "Favourite or unfavourite the selected status", ""},
 	{"Actions", ActBoost, "Boost or unboost the selected status", ""},
 	{"Actions", ActBookmark, "Bookmark or unbookmark the selected status", ""},

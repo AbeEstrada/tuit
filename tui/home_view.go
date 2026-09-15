@@ -298,7 +298,45 @@ func (v *HomeView) promptSearch() {
 			v.push(hashtagSource(strings.TrimPrefix(query, "#")), nil)
 			return
 		}
+		if strings.HasPrefix(query, "@") && !strings.ContainsAny(query, " \t") {
+			acct := strings.TrimPrefix(query, "@")
+			client := v.app.client
+			load(v.app, func(ctx context.Context) (*mastodon.Account, error) {
+				return client.AccountLookup(ctx, acct)
+			}, func(account *mastodon.Account) {
+				if account != nil {
+					if current := v.timeline.Current(); current != nil && current.Title() == "@"+account.Acct {
+						return
+					}
+					v.push(accountSource(account), nil)
+					v.fetchRelationship(account.ID)
+				}
+			})
+			return
+		}
 		v.push(&searchSource{query: query}, nil)
+	})
+}
+
+func (v *HomeView) promptUser() {
+	v.app.PromptInput("User account (e.g. @sarahp@mastodon.social): ", "", func(text string) {
+		acct := strings.TrimSpace(text)
+		if acct == "" {
+			return
+		}
+		acct = strings.TrimPrefix(acct, "@")
+		client := v.app.client
+		load(v.app, func(ctx context.Context) (*mastodon.Account, error) {
+			return client.AccountLookup(ctx, acct)
+		}, func(account *mastodon.Account) {
+			if account != nil {
+				if current := v.timeline.Current(); current != nil && current.Title() == "@"+account.Acct {
+					return
+				}
+				v.push(accountSource(account), nil)
+				v.fetchRelationship(account.ID)
+			}
+		})
 	})
 }
 
@@ -750,6 +788,8 @@ func (v *HomeView) HandleKey(key vaxis.Key) {
 		v.promptHashtag()
 	case km.Is(key, ActSearch):
 		v.promptSearch()
+	case km.Is(key, ActUser):
+		v.promptUser()
 	case km.Is(key, ActFavourite):
 		v.toggleFavourite()
 	case km.Is(key, ActBoost):
