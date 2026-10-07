@@ -60,13 +60,13 @@ func (app *App) EditText(initial string) (string, error) {
 		return "", err
 	}
 
-	if err := app.vx.Suspend(); err != nil {
+	if err := app.Suspend(); err != nil {
 		return "", err
 	}
 	cmd := exec.Command(args[0], append(args[1:], path)...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	runErr := cmd.Run()
-	resumeErr := app.vx.Resume()
+	resumeErr := app.Resume()
 	if runErr != nil {
 		return "", fmt.Errorf("editor %q: %w", editor, runErr)
 	}

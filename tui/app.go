@@ -44,19 +44,20 @@ type App struct {
 	keys    *Keymap
 	spinner *spinner.Model
 
-	running      bool
-	closed       atomic.Bool
-	vxClosed     bool // vaxis closed itself (signal); do not close it again
-	loadingCount int
-	fatalErr     error
-	prompt       *Prompt
-	message      string
-	hint         string
-	messageStyle vaxis.Style
-	messageGen   int
-	split        int // column of the vertical separator, set by the active view
-	cellPixW     int // terminal cell size in pixels from resize events, 0 when unknown
-	cellPixH     int
+	running           bool
+	closed            atomic.Bool
+	vxClosed          bool // vaxis closed itself (signal); do not close it again
+	loadingCount      int
+	fatalErr          error
+	prompt            *Prompt
+	message           string
+	hint              string
+	messageStyle      vaxis.Style
+	messageGen        int
+	split             int // column of the vertical separator, set by the active view
+	cellPixW          int // terminal cell size in pixels from resize events, 0 when unknown
+	cellPixH          int
+	refreshOnNextDraw bool
 
 	config         *config.Config
 	client         *mastodon.Client
@@ -187,7 +188,12 @@ func (app *App) draw() {
 
 	app.help.Draw(win, app.keys)
 
-	app.vx.Render()
+	if app.refreshOnNextDraw {
+		app.refreshOnNextDraw = false
+		app.vx.Refresh()
+	} else {
+		app.vx.Render()
+	}
 }
 
 func (app *App) footerSegments() []vaxis.Segment {
@@ -265,6 +271,31 @@ func (app *App) Confirm(text string, onYes func()) {
 
 func (app *App) RequestQuit() {
 	app.Confirm("Quit?", func() { app.running = false })
+}
+
+// Refresh forces a full screen redraw on the next frame.
+func (app *App) Refresh() {
+	app.refreshOnNextDraw = true
+	app.RequestRedraw()
+}
+
+// Suspend takes the UI out of raw/fullscreen mode so an external command
+// (like an editor) can take over the terminal.
+func (app *App) Suspend() error {
+	return app.vx.Suspend()
+}
+
+// Resume restores the UI state after the terminal was suspended for an
+// external command. It re-enters fullscreen, clears the scaled image cache
+// (since the terminal discarded image placements and memory while suspended),
+// and forces a full refresh.
+func (app *App) Resume() error {
+	if err := app.vx.Resume(); err != nil {
+		return err
+	}
+	utils.ImageCache.ClearScaled()
+	app.Refresh()
+	return nil
 }
 
 // OpenURL opens url in the system browser and reports failures in the footer.

@@ -3,6 +3,8 @@ package utils
 import (
 	"image"
 	"testing"
+
+	"git.sr.ht/~rockorager/vaxis"
 )
 
 func ceilDiv(a, b int) int {
@@ -77,5 +79,48 @@ func TestCoverBox(t *testing.T) {
 	}
 	if w, h := coverBox(image.NewRGBA(image.Rect(0, 0, 800, 400)), 6, 3); w != 6 || h != 3 {
 		t.Fatalf("wide cover box = %dx%d, want 6x3", w, h)
+	}
+}
+
+func TestLRUClear(t *testing.T) {
+	evicted := 0
+	l := newLRU[string](10, func(v string) {
+		evicted++
+	})
+	l.put("a", "1")
+	l.put("b", "2")
+	l.put("c", "3")
+	if l.ll.Len() != 3 {
+		t.Fatalf("expected 3 items, got %d", l.ll.Len())
+	}
+	l.clear()
+	if l.ll.Len() != 0 || len(l.items) != 0 {
+		t.Fatalf("expected 0 items, got ll=%d items=%d", l.ll.Len(), len(l.items))
+	}
+	if evicted != 3 {
+		t.Fatalf("expected 3 evictions, got %d", evicted)
+	}
+	if _, ok := l.get("a"); ok {
+		t.Fatal("expected 'a' to not be found after clear")
+	}
+}
+
+func TestGlobalImageCacheClearScaled(t *testing.T) {
+	var c *GlobalImageCache
+	// Safe to call on nil
+	c.ClearScaled()
+
+	c = &GlobalImageCache{
+		scaled: newLRU[vaxis.Image](10, nil),
+	}
+	// Calling with non-nil scaled cache
+	c.scaled.put("img1", nil)
+	c.scaled.put("img2", nil)
+	c.ClearScaled()
+	if _, ok := c.scaled.get("img1"); ok {
+		t.Fatal("expected img1 to be cleared")
+	}
+	if _, ok := c.scaled.get("img2"); ok {
+		t.Fatal("expected img2 to be cleared")
 	}
 }

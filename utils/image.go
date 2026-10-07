@@ -87,6 +87,19 @@ func (l *lru[V]) put(key string, value V) {
 	}
 }
 
+func (l *lru[V]) clear() {
+	if l == nil {
+		return
+	}
+	for el := l.ll.Front(); el != nil; el = el.Next() {
+		if l.onEvict != nil {
+			l.onEvict(el.Value.(*lruEntry[V]).value)
+		}
+	}
+	l.ll.Init()
+	l.items = make(map[string]*list.Element)
+}
+
 // GlobalImageCache downloads images in the background and keeps two bounded
 // caches: decoded images by URL, and terminal images by URL, cell size, and
 // cell geometry.
@@ -164,6 +177,22 @@ func (c *GlobalImageCache) SetCellPixelSize(w, h int) {
 	c.mu.Lock()
 	c.cellPixW, c.cellPixH = w, h
 	c.mu.Unlock()
+}
+
+// ClearScaled evicts all cached terminal images (releasing any resources) so
+// that images will be re-encoded and re-uploaded on the next draw. This must be
+// called whenever terminal state was invalidated (e.g. after suspending for an
+// external editor). Decoded raw images are kept, so no network re-downloading
+// occurs.
+func (c *GlobalImageCache) ClearScaled() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.scaled != nil {
+		c.scaled.clear()
+	}
 }
 
 // cellGeometryLocked returns the pixel size vaxis assigns to one cell when it
