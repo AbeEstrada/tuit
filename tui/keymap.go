@@ -146,7 +146,7 @@ var helpEntries = []HelpEntry{
 	{"Timeline", ActUp, "Previous status", ""},
 	{"Timeline", ActPageDown, "Down half a page", ""},
 	{"Timeline", ActPageUp, "Up half a page", ""},
-	{"Timeline", ActTop, "First status", ""},
+	{"Timeline", ActTop, "First unread status from the bottom; press twice for the first status", ""},
 	{"Timeline", ActBottom, "Last status", ""},
 	{"Detail pane", ActDown, "Scroll down", ""},
 	{"Detail pane", ActUp, "Scroll up", ""},

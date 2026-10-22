@@ -10,7 +10,10 @@ import (
 	"github.com/mattn/go-mastodon"
 )
 
-const maxReadStatuses = 10000
+const (
+	maxReadStatuses = 10000
+	doubleKeyDelay  = 400 * time.Millisecond
+)
 
 type TimelineView struct {
 	app          *App
@@ -20,6 +23,8 @@ type TimelineView struct {
 	readStatuses map[mastodon.ID]bool
 	viewHeight   int // rows available in the last Draw
 	viewWidth    int
+	gPending     bool // a single g is waiting to see if a second one follows
+	gGen         int
 }
 
 func CreateTimelineView() *TimelineView {
@@ -197,6 +202,8 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 	current := timeline.SelectedIndex()
 	last := len(timeline.Items) - 1
 	jump := max(1, v.viewHeight/2)
+	wasG := v.gPending
+	v.gPending = false
 
 	target := current
 	switch {
@@ -225,6 +232,22 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 			target = current - jump
 		}
 	case km.Is(key, ActTop):
+		// A single g jumps to the first unread status after a short wait;
+		// a second g within the wait jumps to the top.
+		if !wasG {
+			v.gPending = true
+			v.gGen++
+			gen := v.gGen
+			time.AfterFunc(doubleKeyDelay, func() {
+				v.app.Sync(func() {
+					if v.gPending && v.gGen == gen {
+						v.gPending = false
+						v.jumpToUnread()
+					}
+				})
+			})
+			return
+		}
 		target = 0
 	case km.Is(key, ActBottom):
 		target = last
@@ -232,6 +255,20 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 		return
 	}
 	v.moveTo(timeline, target)
+}
+
+// jumpToUnread selects the lowest item that has not been read.
+func (v *TimelineView) jumpToUnread() {
+	timeline := v.Current()
+	if timeline == nil {
+		return
+	}
+	for i := len(timeline.Items) - 1; i >= 0; i-- {
+		if !v.readStatuses[timeline.Items[i].ID()] {
+			v.moveTo(timeline, i)
+			return
+		}
+	}
 }
 
 // Move shifts the selection by delta rows.
