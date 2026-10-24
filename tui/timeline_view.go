@@ -257,14 +257,18 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 	v.moveTo(timeline, target)
 }
 
-// jumpToUnread selects the lowest item that has not been read.
+// jumpToUnread selects the lowest unread item above the lowest read item,
+// ignoring trailing unread items at the bottom of the timeline.
 func (v *TimelineView) jumpToUnread() {
 	timeline := v.Current()
 	if timeline == nil {
 		return
 	}
+	seenRead := false
 	for i := len(timeline.Items) - 1; i >= 0; i-- {
-		if !v.readStatuses[timeline.Items[i].ID()] {
+		if v.readStatuses[timeline.Items[i].ID()] {
+			seenRead = true
+		} else if seenRead {
 			v.moveTo(timeline, i)
 			return
 		}
