@@ -124,23 +124,6 @@ func (t *Timeline) insert(newItems []TimelineItem, prepend bool) int {
 func (t *Timeline) Prepend(items []TimelineItem) int { return t.insert(items, true) }
 func (t *Timeline) Append(items []TimelineItem) int  { return t.insert(items, false) }
 
-// Replace swaps in an item with the same ID and reports whether it was found.
-func (t *Timeline) Replace(item TimelineItem) bool {
-	if item == nil {
-		return false
-	}
-	for i, existing := range t.Items {
-		if existing.ID() == item.ID() {
-			t.Items[i] = item
-			if t.Selected != nil && t.Selected.ID() == item.ID() {
-				t.Selected = item
-			}
-			return true
-		}
-	}
-	return false
-}
-
 // ReplaceStatus swaps in an updated status wherever it appears: directly,
 // inside a boost that wraps it, or as the subject of a notification.
 func (t *Timeline) ReplaceStatus(updated *mastodon.Status) bool {
@@ -247,6 +230,7 @@ func (v *TimelineView) Pop() bool {
 }
 
 func (v *TimelineView) afterChange(t *Timeline) {
+	v.gPending = false // a waiting g must not fire in a different timeline
 	if t.Selected != nil {
 		v.markRead(t.Selected.ID())
 	}

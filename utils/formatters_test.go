@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"git.sr.ht/~rockorager/vaxis"
-	"github.com/mattn/go-mastodon"
 )
 
 func segText(segs []vaxis.Segment) string {
@@ -42,30 +41,29 @@ func TestParseStatusText(t *testing.T) {
 	cases := []struct {
 		name     string
 		html     string
-		tags     []mastodon.Tag
 		wantText string
 	}{
-		{"paragraph", "<p>Hello world</p>", nil, "Hello world\n\n"},
-		{"two paragraphs", "<p>One</p><p>Two</p>", nil, "One\n\nTwo\n\n"},
-		{"pretty printed", "<p>One</p>\n  <p>Two</p>\n", nil, "One\n\nTwo\n\n"},
-		{"line break", "<p>a<br>b<br />c</p>", nil, "a\nb\nc\n\n"},
-		{"entities", "<p>&lt;tag&gt; &amp; &quot;q&quot;</p>", nil, "<tag> & \"q\"\n\n"},
-		{"mention", `<p><span class="h-card"><a href="https://example.social/@alice" class="u-url mention">@<span>alice</span></a></span> hi</p>`, nil, "@alice hi\n\n"},
-		{"hashtag", `<p><a href="https://mastodon.social/tags/golang" class="mention hashtag" rel="tag">#<span>golang</span></a></p>`, []mastodon.Tag{{Name: "golang"}}, "#golang\n\n"},
-		{"list", "<ul><li>one</li><li>two</li></ul>", nil, "• one\n• two\n\n"},
-		{"ordered list", "<p>Steps</p><ol><li>first</li><li>second</li></ol><p>done</p>", nil, "Steps\n\n1. first\n2. second\n\ndone\n\n"},
-		{"nested list", "<ul><li>a<ul><li>b</li></ul></li></ul>", nil, "• a\n  • b\n\n"},
-		{"ellipsis", `<p><a href="https://example.com/a/very/long/path"><span class="invisible">https://</span><span class="ellipsis">example.com/a/very</span><span class="invisible">/long/path</span></a></p>`, nil, "example.com/a/very…\n\n"},
-		{"blockquote", "<p>said:</p><blockquote><p>quoted</p></blockquote><p>after</p>", nil, "said:\n\n│ quoted\n\nafter\n\n"},
-		{"pre keeps newlines", "<pre><code>a\n  b\n</code></pre>", nil, "a\n  b\n\n"},
-		{"heading", "<h1>Title</h1><p>body</p>", nil, "Title\n\nbody\n\n"},
-		{"image alt", `<p>look <img alt=":blob:" src="x"> ok</p>`, nil, "look :blob: ok\n\n"},
-		{"whitespace only", "<p> </p>", nil, ""},
-		{"empty", "", nil, ""},
+		{"paragraph", "<p>Hello world</p>", "Hello world\n\n"},
+		{"two paragraphs", "<p>One</p><p>Two</p>", "One\n\nTwo\n\n"},
+		{"pretty printed", "<p>One</p>\n  <p>Two</p>\n", "One\n\nTwo\n\n"},
+		{"line break", "<p>a<br>b<br />c</p>", "a\nb\nc\n\n"},
+		{"entities", "<p>&lt;tag&gt; &amp; &quot;q&quot;</p>", "<tag> & \"q\"\n\n"},
+		{"mention", `<p><span class="h-card"><a href="https://example.social/@alice" class="u-url mention">@<span>alice</span></a></span> hi</p>`, "@alice hi\n\n"},
+		{"hashtag", `<p><a href="https://mastodon.social/tags/golang" class="mention hashtag" rel="tag">#<span>golang</span></a></p>`, "#golang\n\n"},
+		{"list", "<ul><li>one</li><li>two</li></ul>", "• one\n• two\n\n"},
+		{"ordered list", "<p>Steps</p><ol><li>first</li><li>second</li></ol><p>done</p>", "Steps\n\n1. first\n2. second\n\ndone\n\n"},
+		{"nested list", "<ul><li>a<ul><li>b</li></ul></li></ul>", "• a\n  • b\n\n"},
+		{"ellipsis", `<p><a href="https://example.com/a/very/long/path"><span class="invisible">https://</span><span class="ellipsis">example.com/a/very</span><span class="invisible">/long/path</span></a></p>`, "example.com/a/very…\n\n"},
+		{"blockquote", "<p>said:</p><blockquote><p>quoted</p></blockquote><p>after</p>", "said:\n\n│ quoted\n\nafter\n\n"},
+		{"pre keeps newlines", "<pre><code>a\n  b\n</code></pre>", "a\n  b\n\n"},
+		{"heading", "<h1>Title</h1><p>body</p>", "Title\n\nbody\n\n"},
+		{"image alt", `<p>look <img alt=":blob:" src="x"> ok</p>`, "look :blob: ok\n\n"},
+		{"whitespace only", "<p> </p>", ""},
+		{"empty", "", ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := segText(ParseStatus(tc.html, tc.tags))
+			got := segText(ParseStatus(tc.html))
 			if got != tc.wantText {
 				t.Fatalf("ParseStatus(%q) text = %q, want %q", tc.html, got, tc.wantText)
 			}
@@ -75,7 +73,7 @@ func TestParseStatusText(t *testing.T) {
 
 func TestParseStatusLinkUnescaped(t *testing.T) {
 	html := `<p>See <a href="https://example.com/?a=1&amp;b=2" rel="nofollow noopener" target="_blank"><span class="invisible">https://</span><span class="">example.com/?a=1&amp;b=2</span><span class="invisible"></span></a></p>`
-	segs := ParseStatus(html, nil)
+	segs := ParseStatus(html)
 	links := segLinks(segs)
 	want := []string{"https://example.com/?a=1&b=2"}
 	if !reflect.DeepEqual(links, want) {
@@ -87,7 +85,7 @@ func TestParseStatusLinkUnescaped(t *testing.T) {
 }
 
 func TestParseStatusStyles(t *testing.T) {
-	segs := ParseStatus("<p>Hello <strong>world</strong> and <b>again</b> <em>soft</em> <code>x := 1</code> <del>gone</del></p>", nil)
+	segs := ParseStatus("<p>Hello <strong>world</strong> and <b>again</b> <em>soft</em> <code>x := 1</code> <del>gone</del></p>")
 	if !hasAttr(segs, vaxis.AttrBold, "world") || !hasAttr(segs, vaxis.AttrBold, "again") {
 		t.Fatalf("expected bold segments, got %#v", segs)
 	}
@@ -112,7 +110,7 @@ func TestParseStatusStyles(t *testing.T) {
 }
 
 func TestParseStatusNestedLink(t *testing.T) {
-	segs := ParseStatus(`<p><strong>see <a href="https://example.com">this <em>link</em></a></strong></p>`, nil)
+	segs := ParseStatus(`<p><strong>see <a href="https://example.com">this <em>link</em></a></strong></p>`)
 	var linkSegs []vaxis.Segment
 	for _, s := range segs {
 		if s.Style.Hyperlink == "https://example.com" {
@@ -140,7 +138,7 @@ func TestParseStatusMalformed(t *testing.T) {
 		"<p>tag <unknown attr=1>inside</unknown></p>",
 		"</p></b>stray closers",
 	} {
-		segs := ParseStatus(html, nil)
+		segs := ParseStatus(html)
 		if segText(segs) == "" {
 			t.Fatalf("ParseStatus(%q) produced no text", html)
 		}
@@ -170,13 +168,6 @@ func TestExtractLinks(t *testing.T) {
 	}
 }
 
-func TestPlainText(t *testing.T) {
-	got := PlainText("<p>Hello <b>world</b></p><p>second   line<br>third</p>")
-	if got != "Hello world second line third" {
-		t.Fatalf("PlainText = %q", got)
-	}
-}
-
 func TestIsTagLinkAndValidURL(t *testing.T) {
 	if !IsTagLink("https://mastodon.social/tags/golang") {
 		t.Fatal("expected tag link")
@@ -184,8 +175,20 @@ func TestIsTagLinkAndValidURL(t *testing.T) {
 	if IsTagLink("https://mastodon.social/@user") {
 		t.Fatal("did not expect tag link")
 	}
-	if !IsValidURL("https://example.com") || IsValidURL("/relative") || IsValidURL("") || IsValidURL("mailto:") {
-		t.Fatal("IsValidURL mismatch")
+	if !IsValidURL("https://example.com") || !IsValidURL("http://example.com/a?b=c") {
+		t.Fatal("expected web URLs to be valid")
+	}
+	for _, bad := range []string{"", "/relative", "mailto:", "file://localhost/x", "smb://host/share", "-aCalculator", "http://a\x1b]52;c;eA==\x07"} {
+		if IsValidURL(bad) {
+			t.Errorf("IsValidURL(%q) = true", bad)
+		}
+	}
+}
+
+func TestParseStatusDropsUnsafeHyperlinks(t *testing.T) {
+	segs := ParseStatus(`<p><a href="http://a&#27;]52;c;eA==&#7;x">esc</a> <a href="file://localhost/x">file</a></p>`)
+	if links := segLinks(segs); len(links) != 0 {
+		t.Fatalf("unsafe hyperlinks kept: %q", links)
 	}
 }
 
@@ -198,14 +201,11 @@ func TestFormatNumber(t *testing.T) {
 	}
 }
 
-func TestTitleCaseAndStripTags(t *testing.T) {
+func TestTitleCase(t *testing.T) {
 	if got := TitleCase("public"); got != "Public" {
 		t.Errorf("TitleCase = %q", got)
 	}
 	if got := TitleCase("direct message"); got != "Direct Message" {
 		t.Errorf("TitleCase = %q", got)
-	}
-	if got := StripTags("<span>a</span> <b>b</b> &amp; c"); got != "a b & c" {
-		t.Errorf("StripTags = %q", got)
 	}
 }

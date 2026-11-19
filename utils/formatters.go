@@ -8,7 +8,6 @@ import (
 	"unicode"
 
 	"git.sr.ht/~rockorager/vaxis"
-	"github.com/mattn/go-mastodon"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
@@ -53,29 +52,6 @@ func TitleCase(text string) string {
 		}
 	}
 	return string(runes)
-}
-
-// StripTags returns the text content of an HTML fragment with entities decoded.
-func StripTags(s string) string {
-	z := html.NewTokenizer(strings.NewReader(s))
-	var b strings.Builder
-	for {
-		switch z.Next() {
-		case html.ErrorToken:
-			return b.String()
-		case html.TextToken:
-			b.Write(z.Text())
-		}
-	}
-}
-
-// PlainText renders status HTML to a single line of text for previews.
-func PlainText(content string) string {
-	var b strings.Builder
-	for _, seg := range ParseStatus(content, nil) {
-		b.WriteString(seg.Text)
-	}
-	return strings.Join(strings.Fields(b.String()), " ")
 }
 
 func FormatNumber(n int64) string {
@@ -191,17 +167,15 @@ func ExtractFirstExternalURL(content string) string {
 	return ""
 }
 
+// IsValidURL reports whether link is an absolute web URL. Links come from the
+// network and end up in terminal hyperlinks and the system opener, so only
+// http and https pass; url.Parse already rejects control characters.
 func IsValidURL(link string) bool {
-	if strings.TrimSpace(link) == "" {
-		return false
-	}
-
 	u, err := url.Parse(link)
 	if err != nil {
 		return false
 	}
-
-	return u.Scheme != "" && u.Host != ""
+	return (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
 }
 
 type spanFlags struct {
@@ -311,9 +285,7 @@ type htmlRenderer struct {
 }
 
 // ParseStatus converts status HTML into styled segments ready for wrapping.
-// The tags parameter is accepted for compatibility; hashtags are recognized
-// from the markup itself.
-func ParseStatus(content string, tags []mastodon.Tag) []vaxis.Segment {
+func ParseStatus(content string) []vaxis.Segment {
 	if strings.TrimSpace(content) == "" {
 		return nil
 	}
@@ -494,7 +466,7 @@ func (r *htmlRenderer) startTag(tok html.Token) {
 		r.emitText(strings.Repeat("  ", max(0, depth-1))+marker, r.top())
 	case atom.A:
 		style := vaxis.Style{UnderlineStyle: vaxis.UnderlineSingle}
-		if href := attrValue(tok, "href"); href != "" {
+		if href := attrValue(tok, "href"); IsValidURL(href) {
 			style.Hyperlink = href
 		}
 		styled(style)

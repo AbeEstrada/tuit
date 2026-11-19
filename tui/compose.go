@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"git.sr.ht/~rockorager/vaxis"
+	"github.com/AbeEstrada/tuit/api"
 	"github.com/mattn/go-mastodon"
 )
 
@@ -29,6 +31,10 @@ type composeDraft struct {
 	inReplyTo  *mastodon.Status
 	visibility string
 	spoiler    string
+	failed     string // error of the last attempt to post, shown when asking again
+	// key is the Idempotency-Key sent with every attempt to post this draft, so
+	// a retry after a lost answer returns the first post instead of a second one.
+	key string
 }
 
 // EditText suspends the UI, opens the user's editor on a temporary file that
@@ -110,7 +116,7 @@ func (v *HomeView) replyPrefix(status *mastodon.Status) string {
 // compose writes a new post, or a reply to the selected status, in the user's
 // editor and then asks for a content warning and confirmation.
 func (v *HomeView) compose(reply bool) {
-	draft := &composeDraft{visibility: v.app.config.Preferences.DefaultVisibility}
+	draft := &composeDraft{visibility: v.app.config.Preferences.DefaultVisibility, key: rand.Text()}
 	if reply {
 		status := v.selectedStatus()
 		if status == nil {
@@ -144,25 +150,40 @@ func (v *HomeView) compose(reply bool) {
 }
 
 func (v *HomeView) confirmPost(draft *composeDraft) {
-	count := utf8.RuneCountInString(draft.text)
 	prompt := &Prompt{}
 	refresh := func() {
 		what := "Post"
 		if draft.inReplyTo != nil {
 			what = "Reply"
 		}
-		prompt.Text = fmt.Sprintf("%s %d characters as %s? v cycles visibility", what, count, draft.visibility)
+		prompt.Text = fmt.Sprintf("%s %d characters as %s? v cycles visibility, e edits", what, utf8.RuneCountInString(draft.text), draft.visibility)
+		if draft.failed != "" {
+			prompt.Text = fmt.Sprintf("Post failed, retry as %s? v cycles visibility, e edits · %s", draft.visibility, draft.failed)
+		}
 	}
 	refresh()
 	prompt.OnYes = func() { v.submitPost(draft) }
 	prompt.OnNo = func() { v.app.Flash("Post discarded") }
 	prompt.OnOther = func(key vaxis.Key) bool {
-		if key.Matches('v') {
+		switch {
+		case key.Matches('v'):
 			draft.visibility = nextVisibility(draft.visibility)
-			refresh()
-			return true
+		case key.Matches('e'):
+			// Back to the editor: the way out when the server rejects the text.
+			text, err := v.app.EditText(draft.text)
+			if err != nil {
+				v.app.SetError(err.Error())
+				return true
+			}
+			// An emptied file keeps the draft; discarding stays on n.
+			if text = strings.TrimRight(text, " \t\r\n"); strings.TrimSpace(text) != "" {
+				draft.text, draft.failed = text, ""
+			}
+		default:
+			return false
 		}
-		return false
+		refresh()
+		return true
 	}
 	v.app.prompt = prompt
 }
@@ -179,9 +200,23 @@ func (v *HomeView) submitPost(draft *composeDraft) {
 		toot.InReplyToID = draft.inReplyTo.ID
 	}
 
-	load(v.app, func(ctx context.Context) (*mastodon.Status, error) {
-		return client.PostStatus(ctx, toot)
-	}, func(posted *mastodon.Status) {
+	// The error travels inside the result so a failure can ask again instead of
+	// dropping the text the user wrote.
+	type result struct {
+		posted *mastodon.Status
+		err    error
+	}
+	load(v.app, func(ctx context.Context) (result, error) {
+		posted, err := client.PostStatus(api.WithIdempotencyKey(ctx, draft.key), toot)
+		return result{posted, err}, nil
+	}, func(r result) {
+		if r.err != nil {
+			v.app.SetError("Post failed: " + r.err.Error())
+			draft.failed = r.err.Error()
+			v.confirmPost(draft)
+			return
+		}
+		posted := r.posted
 		if posted == nil {
 			return
 		}

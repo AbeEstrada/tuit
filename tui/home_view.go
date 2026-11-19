@@ -204,7 +204,8 @@ func (v *HomeView) reloadTimeline(t *Timeline) {
 				v.timeline.afterChange(t)
 			}
 		}
-		if t.Title() == titleNotifications && len(r.items) > 0 {
+		// Only what is on screen counts as seen; a background backfill must not.
+		if t.Title() == titleNotifications && len(r.items) > 0 && v.timeline.Root() == t {
 			v.markNotificationsRead(t)
 		}
 	})
@@ -247,6 +248,11 @@ func (v *HomeView) openProfile(own bool) {
 	if own {
 		account = v.app.currentAccount
 	}
+	v.openAccount(account)
+}
+
+// openAccount pushes an account's timeline unless it is already shown.
+func (v *HomeView) openAccount(account *mastodon.Account) {
 	if account == nil {
 		return
 	}
@@ -255,6 +261,14 @@ func (v *HomeView) openProfile(own bool) {
 	}
 	v.push(accountSource(account), nil)
 	v.fetchRelationship(account.ID)
+}
+
+// lookupAccount resolves a handle such as user@example.social and opens it.
+func (v *HomeView) lookupAccount(acct string) {
+	client := v.app.client
+	load(v.app, func(ctx context.Context) (*mastodon.Account, error) {
+		return client.AccountLookup(ctx, acct)
+	}, v.openAccount)
 }
 
 // markNotificationsRead tells the server the newest notification has been
@@ -299,19 +313,7 @@ func (v *HomeView) promptSearch() {
 			return
 		}
 		if strings.HasPrefix(query, "@") && !strings.ContainsAny(query, " \t") {
-			acct := strings.TrimPrefix(query, "@")
-			client := v.app.client
-			load(v.app, func(ctx context.Context) (*mastodon.Account, error) {
-				return client.AccountLookup(ctx, acct)
-			}, func(account *mastodon.Account) {
-				if account != nil {
-					if current := v.timeline.Current(); current != nil && current.Title() == "@"+account.Acct {
-						return
-					}
-					v.push(accountSource(account), nil)
-					v.fetchRelationship(account.ID)
-				}
-			})
+			v.lookupAccount(strings.TrimPrefix(query, "@"))
 			return
 		}
 		v.push(&searchSource{query: query}, nil)
@@ -324,19 +326,7 @@ func (v *HomeView) promptUser() {
 		if acct == "" {
 			return
 		}
-		acct = strings.TrimPrefix(acct, "@")
-		client := v.app.client
-		load(v.app, func(ctx context.Context) (*mastodon.Account, error) {
-			return client.AccountLookup(ctx, acct)
-		}, func(account *mastodon.Account) {
-			if account != nil {
-				if current := v.timeline.Current(); current != nil && current.Title() == "@"+account.Acct {
-					return
-				}
-				v.push(accountSource(account), nil)
-				v.fetchRelationship(account.ID)
-			}
-		})
+		v.lookupAccount(strings.TrimPrefix(acct, "@"))
 	})
 }
 
@@ -449,9 +439,14 @@ func (v *HomeView) replaceStatusEverywhere(status *mastodon.Status) {
 func (v *HomeView) handleStreamingEvent(event mastodon.Event) {
 	home := v.roots[titleHome]
 	if v.streamBroken {
-		v.streamBroken = false
+		// While something else loads, stay broken so the next event retries.
 		if home != nil && !v.app.IsLoading() {
+			v.streamBroken = false
 			v.reloadTimeline(home)
+			if notifications := v.roots[titleNotifications]; notifications != nil {
+				v.reloadTimeline(notifications)
+			}
+			go v.app.fetchUnreadNotifications(v.app.customClient)
 		}
 		// The backfill fetches everything newer than the top of the timeline,
 		// including this status, so skip the direct insert to keep ordering.

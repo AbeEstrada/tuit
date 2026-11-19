@@ -168,7 +168,7 @@ func (v *StatusView) body(win vaxis.Window, s *mastodon.Status, width int) ([]va
 	if v.cacheSegs != nil && v.cacheID == s.ID && v.cacheContent == s.Content && v.cacheWidth == width {
 		return v.cacheSegs, v.cacheRows
 	}
-	segs := utils.ParseStatus(s.Content, s.Tags)
+	segs := utils.ParseStatus(s.Content)
 	if segs == nil {
 		segs = []vaxis.Segment{}
 	}
@@ -256,7 +256,9 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 
 	// Content warning or filter: gate everything below it until expanded.
 	warning := contentWarning(display)
-	expanded := v.expanded[display.ID]
+	prefs := v.app.config.Preferences
+	// The preference flips the default, so x still toggles either way.
+	expanded := v.expanded[display.ID] != prefs.ExpandCW
 	if warning != "" {
 		line(0, vaxis.Segment{Text: "⚠ CW: ", Style: warnStyle}, vaxis.Segment{Text: warning, Style: boldStyle})
 		hint := "[x] show content"
@@ -323,10 +325,11 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 			if title == "" {
 				title = card.URL
 			}
-			line(0,
-				vaxis.Segment{Text: "↗ "},
-				vaxis.Segment{Text: title, Style: vaxis.Style{Hyperlink: card.URL, UnderlineStyle: vaxis.UnderlineSingle}},
-			)
+			titleStyle := vaxis.Style{UnderlineStyle: vaxis.UnderlineSingle}
+			if utils.IsValidURL(card.URL) {
+				titleStyle.Hyperlink = card.URL
+			}
+			line(0, vaxis.Segment{Text: "↗ "}, vaxis.Segment{Text: title, Style: titleStyle})
 			if card.ProviderName != "" {
 				line(0, vaxis.Segment{Text: card.ProviderName, Style: dimStyle})
 			}
@@ -339,7 +342,7 @@ func (v *StatusView) Draw(win vaxis.Window, focused bool, status *mastodon.Statu
 	}
 
 	if len(display.MediaAttachments) > 0 {
-		hiddenMedia := display.Sensitive && !expanded
+		hiddenMedia := display.Sensitive && !expanded && !prefs.ShowSensitiveMedia
 		for i, media := range display.MediaAttachments {
 			if i > 0 {
 				y++
@@ -412,22 +415,23 @@ func (v *StatusView) HandleKey(key vaxis.Key) {
 		return
 	}
 	maxOffset := v.totalHeight - v.viewHeight
+	km := v.app.keys
 	switch {
-	case key.Matches('j'):
+	case km.Is(key, ActDown):
 		if v.scrollOffset < maxOffset {
 			v.scrollOffset++
 		}
-	case key.Matches('k'):
+	case km.Is(key, ActUp):
 		if v.scrollOffset > 0 {
 			v.scrollOffset--
 		}
-	case key.MatchString("Ctrl+d"):
+	case km.Is(key, ActPageDown):
 		v.scrollOffset = min(maxOffset, v.scrollOffset+max(1, v.viewHeight/2))
-	case key.MatchString("Ctrl+u"):
+	case km.Is(key, ActPageUp):
 		v.scrollOffset = max(0, v.scrollOffset-max(1, v.viewHeight/2))
-	case key.Matches('g'):
+	case km.Is(key, ActTop):
 		v.scrollOffset = 0
-	case key.Matches('G'):
+	case km.Is(key, ActBottom):
 		v.scrollOffset = maxOffset
 	}
 }

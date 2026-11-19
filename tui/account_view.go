@@ -35,13 +35,14 @@ func (v *AccountView) Draw(win vaxis.Window, focused bool, account *mastodon.Acc
 	width, height := win.Size()
 	y := 0
 
+	metaX := 0
 	if utils.ImageCache.Enabled() && width > profileAvatarWidth {
+		metaX = profileAvatarWidth + 1
 		if vxImage, cached := utils.ImageCache.Get(account.AvatarStatic, profileAvatarWidth, profileAvatarHeight); cached {
 			vxImage.Draw(win.New(0, y, profileAvatarWidth, profileAvatarHeight))
 		}
 	}
 
-	metaX := profileAvatarWidth + 1
 	metaY := 0
 	metaWin := win.New(metaX, 0, width-metaX, profileAvatarHeight)
 	metaWin.PrintTruncate(metaY, vaxis.Segment{
@@ -94,7 +95,7 @@ func (v *AccountView) Draw(win vaxis.Window, focused bool, account *mastodon.Acc
 
 	fieldsWin := win.New(0, y, width, len(account.Fields))
 	for i, field := range account.Fields {
-		valueSegments := utils.ParseStatus(field.Value, nil)
+		valueSegments := utils.ParseStatus(field.Value)
 
 		var flatText strings.Builder
 		for _, seg := range valueSegments {
@@ -136,7 +137,7 @@ func (v *AccountView) Draw(win vaxis.Window, focused bool, account *mastodon.Acc
 
 	if y < height {
 		contentWin := win.New(0, y, width, height-y)
-		contentWin.Wrap(utils.ParseStatus(account.Note, nil)...)
+		contentWin.Wrap(utils.ParseStatus(account.Note)...)
 	}
 }
 

@@ -25,10 +25,6 @@ func (v *LinksView) SetLinks(links []LinkItem) {
 	v.selected = 0
 }
 
-func (v *LinksView) Len() int {
-	return len(v.links)
-}
-
 func (v *LinksView) Selected() (LinkItem, bool) {
 	if v.selected < 0 || v.selected >= len(v.links) {
 		return LinkItem{}, false

@@ -26,6 +26,7 @@ const (
 	maxRawImages    = 150
 	maxScaledImages = 300
 	maxImageBytes   = 20 << 20
+	maxImagePixels  = 40_000_000
 	downloadWorkers = 4
 	downloadTimeout = 15 * time.Second
 	failureTTL      = 5 * time.Minute
@@ -161,12 +162,6 @@ func (c *GlobalImageCache) Enabled() bool {
 	return c != nil && c.enabled
 }
 
-// HighQuality reports whether a pixel graphics protocol (kitty or sixel) is in
-// use rather than block characters.
-func (c *GlobalImageCache) HighQuality() bool {
-	return c != nil && c.hq
-}
-
 // SetCellPixelSize records the terminal's cell size in pixels, taken from
 // resize events, so images can be scaled to exact cell boxes. Zero means the
 // size is unknown.
@@ -295,17 +290,6 @@ func (c *GlobalImageCache) Get(url string, width, height int) (vaxis.Image, bool
 	return vxImage, true
 }
 
-// LoadAsync starts downloading url in the background if it is not cached,
-// already loading, or recently failed.
-func (c *GlobalImageCache) LoadAsync(url string) {
-	if !c.Enabled() || url == "" {
-		return
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.loadLocked(url)
-}
-
 func (c *GlobalImageCache) loadLocked(url string) {
 	if c.loading[url] || c.raw.contains(url) {
 		return
@@ -366,11 +350,19 @@ func DownloadImage(url string) (image.Image, error) {
 	if len(data) > maxImageBytes {
 		return nil, fmt.Errorf("image exceeds %d bytes", maxImageBytes)
 	}
+	return decodeImage(data)
+}
 
-	img, _, err := image.Decode(bytes.NewReader(data))
+// decodeImage decodes data after checking its declared size: a small file can
+// claim huge dimensions and exhaust memory when decoded.
+func decodeImage(data []byte) (image.Image, error) {
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
 		return nil, err
 	}
-
-	return img, nil
+	if cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width > maxImagePixels/cfg.Height {
+		return nil, fmt.Errorf("image is %dx%d, over %d pixels", cfg.Width, cfg.Height, maxImagePixels)
+	}
+	img, _, err := image.Decode(bytes.NewReader(data))
+	return img, err
 }

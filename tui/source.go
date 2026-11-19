@@ -1,8 +1,10 @@
 package tui
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/mattn/go-mastodon"
 )
@@ -22,9 +24,47 @@ type Source interface {
 	Fetch(ctx context.Context, c *mastodon.Client) ([]TimelineItem, error)
 	// LoadMore loads the next older page, or nil when there is none.
 	LoadMore(ctx context.Context, c *mastodon.Client) ([]TimelineItem, error)
-	// Newer loads items newer than sinceID. ok is false when the source cannot
-	// do that, in which case callers refetch from the top instead.
+	// Newer loads every item newer than sinceID, newest first. ok is false when
+	// the source cannot do that, or too much is missing to page through, in
+	// which case callers refetch from the top instead.
 	Newer(ctx context.Context, c *mastodon.Client, sinceID mastodon.ID) (items []TimelineItem, ok bool, err error)
+}
+
+// maxNewerPages bounds how far Newer pages forward: 20 pages of reloadLimit
+// items, 800 on Mastodon.
+const maxNewerPages = 20
+
+// compareID orders IDs oldest first. Mastodon IDs are numeric strings, so a
+// longer one is larger; other servers use fixed-width sortable strings.
+func compareID(a, b mastodon.ID) int {
+	if c := cmp.Compare(len(a), len(b)); c != 0 {
+		return c
+	}
+	return cmp.Compare(a, b)
+}
+
+// newerPages implements Source.Newer by paging forward with min_id, which
+// returns the page right above an ID. since_id would return only the newest
+// page and leave a silent gap above what is already shown, and the timeline is
+// read from the bottom up, so nothing in between may go missing.
+func newerPages(sinceID mastodon.ID, fetch func(*mastodon.Pagination) ([]TimelineItem, error)) (items []TimelineItem, ok bool, err error) {
+	for range maxNewerPages + 1 { // the extra request confirms the last page was the last
+		page, err := fetch(&mastodon.Pagination{MinID: sinceID, Limit: reloadLimit})
+		if err != nil {
+			return nil, true, err
+		}
+		if len(page) == 0 {
+			return items, true, nil
+		}
+		// Newest first whatever order the server used, so page[0] is the next cursor.
+		slices.SortFunc(page, func(a, b TimelineItem) int { return compareID(b.ID(), a.ID()) })
+		if compareID(page[0].ID(), sinceID) <= 0 {
+			break // the server ignored min_id and would never advance
+		}
+		sinceID = page[0].ID()
+		items = append(page, items...)
+	}
+	return nil, false, nil
 }
 
 // threadLayout is implemented by sources whose rows should be indented.
@@ -74,11 +114,10 @@ func (s *statusSource) Newer(ctx context.Context, c *mastodon.Client, sinceID ma
 	if !s.newer {
 		return nil, false, nil
 	}
-	statuses, err := s.page(ctx, c, &mastodon.Pagination{SinceID: sinceID, Limit: reloadLimit})
-	if err != nil {
-		return nil, true, err
-	}
-	return statusItems(statuses), true, nil
+	return newerPages(sinceID, func(pg *mastodon.Pagination) ([]TimelineItem, error) {
+		statuses, err := s.page(ctx, c, pg)
+		return statusItems(statuses), err
+	})
 }
 
 func homeSource() Source {
@@ -122,9 +161,9 @@ func favouritesSource() Source {
 }
 
 func accountSource(account *mastodon.Account) Source {
+	// No newer: reload refetches, since prepending would land above the profile row.
 	return &statusSource{
 		title:  "@" + account.Acct,
-		newer:  true,
 		prefix: []TimelineItem{AccountItem{Account: account}},
 		page: func(ctx context.Context, c *mastodon.Client, pg *mastodon.Pagination) ([]*mastodon.Status, error) {
 			return c.GetAccountStatuses(ctx, account.ID, pg)
@@ -220,11 +259,10 @@ func (s *notificationsSource) LoadMore(ctx context.Context, c *mastodon.Client) 
 }
 
 func (s *notificationsSource) Newer(ctx context.Context, c *mastodon.Client, sinceID mastodon.ID) ([]TimelineItem, bool, error) {
-	notifications, err := c.GetNotifications(ctx, &mastodon.Pagination{SinceID: sinceID, Limit: reloadLimit})
-	if err != nil {
-		return nil, true, err
-	}
-	return notificationItems(notifications), true, nil
+	return newerPages(sinceID, func(pg *mastodon.Pagination) ([]TimelineItem, error) {
+		notifications, err := c.GetNotifications(ctx, pg)
+		return notificationItems(notifications), err
+	})
 }
 
 // searchSource shows the accounts and statuses matching a query.

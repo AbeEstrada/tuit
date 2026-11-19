@@ -27,7 +27,8 @@ type Preferences struct {
 	SplitRatio string `json:"split_ratio"`
 	// ShowImages turns image rendering off entirely when false.
 	ShowImages *bool `json:"show_images,omitempty"`
-	// ExpandCW shows content behind content warnings without pressing x.
+	// ExpandCW shows content behind content warnings, and the media with it,
+	// without pressing x.
 	ExpandCW bool `json:"expand_cw"`
 	// ShowSensitiveMedia shows sensitive media without pressing x.
 	ShowSensitiveMedia bool `json:"show_sensitive_media"`

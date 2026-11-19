@@ -20,6 +20,28 @@ func NewClient(client *mastodon.Client) *Client {
 	return &Client{Client: client}
 }
 
+type idempotencyKey struct{}
+
+// WithIdempotencyKey returns a context whose requests carry key in the
+// Idempotency-Key header. Mastodon answers a repeated key with the status the
+// first request created (for one hour), so retrying a post cannot post twice.
+func WithIdempotencyKey(ctx context.Context, key string) context.Context {
+	return context.WithValue(ctx, idempotencyKey{}, key)
+}
+
+// IdempotencyTransport sends the key set with WithIdempotencyKey. go-mastodon
+// cannot set request headers, but it passes the context and sends through its
+// exported http.Client, so the header is added here.
+type IdempotencyTransport struct{}
+
+func (IdempotencyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if key, ok := req.Context().Value(idempotencyKey{}).(string); ok {
+		req = req.Clone(req.Context()) // a RoundTripper must not modify the caller's request
+		req.Header.Set("Idempotency-Key", key)
+	}
+	return http.DefaultTransport.RoundTrip(req)
+}
+
 type UnreadCount struct {
 	Count int `json:"count"`
 }
@@ -31,13 +53,7 @@ func (c *Client) newRequest(ctx context.Context, method, apiPath string, body st
 	}
 	u = u.JoinPath(apiPath)
 
-	var reader *strings.Reader
-	if body != "" {
-		reader = strings.NewReader(body)
-	} else {
-		reader = strings.NewReader("")
-	}
-	req, err := http.NewRequestWithContext(ctx, method, u.String(), reader)
+	req, err := http.NewRequestWithContext(ctx, method, u.String(), strings.NewReader(body))
 	if err != nil {
 		return nil, err
 	}

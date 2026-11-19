@@ -154,6 +154,7 @@ Action names in parentheses are what the `keys` preference accepts.
 | `L` | Choose one of your lists (`lists`)                       |
 | `#` | Open a hashtag timeline (`hashtag`)                      |
 | `/` | Search statuses and accounts (`search`)                  |
+| `w` | Go directly to a user account (`user`)                   |
 
 ### Actions
 
@@ -175,7 +176,7 @@ Action names in parentheses are what the `keys` preference accepts.
 | `k`      | Previous status (`up`)                    |
 | `Ctrl+d` | Down half a page (`page_down`)            |
 | `Ctrl+u` | Up half a page (`page_up`)                |
-| `g`      | First status (`top`)                      |
+| `g`      | Next unread status from the bottom up; press twice for the first status (`top`) |
 | `G`      | Last status (`bottom`)                    |
 
 ### Detail pane
@@ -198,4 +199,6 @@ Click a row to select it or a pane to focus it. The wheel moves through the time
 
 ## Composing
 
-`c` opens your editor (`preferences.editor`, then `$VISUAL`, then `$EDITOR`, then `vi`) on an empty file; `R` prefills the mentions of the selected status and inherits its visibility and content warning. Save and quit to continue, or quit with an empty file to discard the post. Tuit then asks for an optional content warning and shows the character count and visibility; press `v` to cycle the visibility and `y` to post.
+`c` opens your editor (`preferences.editor`, then `$VISUAL`, then `$EDITOR`, then `vi`) on an empty file; `R` prefills the mentions of the selected status and inherits its visibility and content warning. Save and quit to continue, or quit with an empty file to discard the post. Tuit then asks for an optional content warning and shows the character count and visibility; press `v` to cycle the visibility, `e` to go back to the editor, and `y` to post.
+
+If posting fails, the same prompt returns with the error, so you can retry with `y` or fix the text with `e`. Every attempt of a draft carries the same `Idempotency-Key`, so a retry after a lost answer does not post twice on servers that honour it (Mastodon does, for one hour).

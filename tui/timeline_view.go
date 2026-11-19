@@ -257,8 +257,11 @@ func (v *TimelineView) HandleKey(key vaxis.Key) {
 	v.moveTo(timeline, target)
 }
 
-// jumpToUnread selects the lowest unread item above the lowest read item,
-// ignoring trailing unread items at the bottom of the timeline.
+// jumpToUnread selects the next unread item going up from the bottom: the
+// lowest unread item above the lowest read one. The timeline is read oldest
+// first, so each press continues upward past whatever was already read, and
+// read rows at the top do not matter. Unread items below everything read
+// (older pages never scrolled to) are ignored.
 func (v *TimelineView) jumpToUnread() {
 	timeline := v.Current()
 	if timeline == nil {
@@ -296,6 +299,7 @@ func (v *TimelineView) SelectRow(row int) bool {
 	}
 	timeline.Selected = timeline.Items[index]
 	v.markRead(timeline.Selected.ID())
+	v.gPending = false // a click overrides a g that is still waiting
 	return true
 }
 

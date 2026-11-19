@@ -1,7 +1,12 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/binary"
+	"hash/crc32"
 	"image"
+	"image/png"
+	"strings"
 	"testing"
 
 	"git.sr.ht/~rockorager/vaxis"
@@ -122,5 +127,29 @@ func TestGlobalImageCacheClearScaled(t *testing.T) {
 	}
 	if _, ok := c.scaled.get("img2"); ok {
 		t.Fatal("expected img2 to be cleared")
+	}
+}
+
+func TestDecodeImageRejectsHugeDimensions(t *testing.T) {
+	// A PNG header alone is enough to declare a size; build one for 50000x50000.
+	ihdr := []byte("IHDR")
+	ihdr = binary.BigEndian.AppendUint32(ihdr, 50000)
+	ihdr = binary.BigEndian.AppendUint32(ihdr, 50000)
+	ihdr = append(ihdr, 8, 6, 0, 0, 0) // 8-bit RGBA, no interlace
+	data := []byte("\x89PNG\r\n\x1a\n")
+	data = binary.BigEndian.AppendUint32(data, uint32(len(ihdr)-4))
+	data = append(data, ihdr...)
+	data = binary.BigEndian.AppendUint32(data, crc32.ChecksumIEEE(ihdr))
+	if _, err := decodeImage(data); err == nil || !strings.Contains(err.Error(), "50000x50000") {
+		t.Fatalf("decodeImage error = %v, want a size rejection", err)
+	}
+
+	var small bytes.Buffer
+	if err := png.Encode(&small, image.NewRGBA(image.Rect(0, 0, 2, 3))); err != nil {
+		t.Fatal(err)
+	}
+	img, err := decodeImage(small.Bytes())
+	if err != nil || img.Bounds().Dx() != 2 || img.Bounds().Dy() != 3 {
+		t.Fatalf("decodeImage(small) = %v, %v", img, err)
 	}
 }

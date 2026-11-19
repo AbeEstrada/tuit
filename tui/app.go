@@ -35,8 +35,7 @@ type Prompt struct {
 // their results to the main thread through Sync.
 type App struct {
 	vx      *vaxis.Vaxis
-	views   map[string]View
-	view    View
+	view    *HomeView
 	header  *Header
 	footer  *Footer
 	help    *HelpView
@@ -67,15 +66,15 @@ type App struct {
 
 func CreateApp() (*App, error) {
 	cfg, err := config.LoadConfig()
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			fmt.Fprintf(os.Stderr, "tuit: %v\n", err)
-		}
-		fmt.Println("No usable credentials found, starting authentication setup.")
+	if errors.Is(err, os.ErrNotExist) {
+		fmt.Println("No credentials found, starting authentication setup.")
 		cfg, err = auth.SetupAuth()
 		if err != nil {
 			return nil, fmt.Errorf("authentication setup failed: %w", err)
 		}
+	} else if err != nil {
+		// A broken config stops here: running setup would overwrite it.
+		return nil, err
 	}
 
 	vx, err := vaxis.New(vaxis.Options{})
@@ -85,7 +84,7 @@ func CreateApp() (*App, error) {
 
 	app := &App{
 		vx:      vx,
-		views:   make(map[string]View),
+		view:    CreateHomeView(),
 		header:  CreateHeader(),
 		footer:  CreateFooter(),
 		help:    &HelpView{},
@@ -94,11 +93,7 @@ func CreateApp() (*App, error) {
 		running: true,
 		config:  cfg,
 	}
-	app.views["home"] = CreateHomeView()
-	app.view = app.views["home"]
-	for _, view := range app.views {
-		view.SetApp(app)
-	}
+	app.view.SetApp(app)
 
 	utils.InitImageCache(vx, app.RequestRedraw, cfg.Preferences.ImagesEnabled())
 
@@ -120,11 +115,7 @@ func (app *App) Close() {
 	if app.closed.Swap(true) {
 		return
 	}
-	for _, view := range app.views {
-		if c, ok := view.(Closer); ok {
-			c.Close()
-		}
-	}
+	app.view.Close()
 	if !app.vxClosed {
 		app.vx.Close()
 	}
@@ -154,7 +145,7 @@ func (app *App) draw() {
 
 	// The body sits between the header row and the rule plus footer rows. It is
 	// drawn first so the header can reflect the view's focus state.
-	if height > 3 && app.view != nil {
+	if height > 3 {
 		app.view.Draw(win.New(0, 1, width, height-3))
 	}
 
@@ -303,6 +294,11 @@ func (app *App) OpenURL(url string) {
 	if url == "" {
 		return
 	}
+	// URLs come from the network; only web links may reach the system opener.
+	if !utils.IsValidURL(url) {
+		app.Flash("Cannot open this link")
+		return
+	}
 	if err := utils.OpenBrowser(url); err != nil {
 		app.SetError("Could not open browser: " + err.Error())
 	}
@@ -317,6 +313,7 @@ func (app *App) initClient() {
 		ClientSecret: app.config.Auth.ClientSecret,
 		AccessToken:  app.config.Auth.AccessToken,
 	})
+	client.Transport = api.IdempotencyTransport{}
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
@@ -335,9 +332,7 @@ func (app *App) initClient() {
 		app.client = client
 		app.customClient = api.NewClient(client)
 		app.currentAccount = account
-		if app.view != nil {
-			app.view.OnActivate()
-		}
+		app.view.OnActivate()
 		go app.fetchUnreadNotifications(app.customClient)
 	})
 }
@@ -397,9 +392,7 @@ func (app *App) handleMouse(m vaxis.Mouse) {
 	if app.help.visible || app.prompt != nil || app.input != nil {
 		return
 	}
-	if h, ok := app.view.(MouseHandler); ok {
-		h.HandleMouse(m)
-	}
+	app.view.HandleMouse(m)
 }
 
 func (app *App) handleKeyEvent(key vaxis.Key) {
@@ -449,8 +442,8 @@ func (app *App) handleKeyEvent(key vaxis.Key) {
 		return
 	}
 
-	// Delegate keys to the current view
-	if app.view != nil {
+	// The view fetches with the client, which is nil until login completes.
+	if app.client != nil {
 		app.view.HandleKey(key)
 	}
 }
