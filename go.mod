@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	git.sr.ht/~rockorager/vaxis v0.16.0
-	github.com/mattn/go-mastodon v0.0.13
+	github.com/mattn/go-mastodon v0.0.14-0.20261118171431-65c27b5f38b0
 	golang.org/x/image v0.44.0
 	golang.org/x/net v0.57.0
 )

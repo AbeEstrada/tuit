@@ -2,8 +2,8 @@ git.sr.ht/~rockorager/vaxis v0.16.0 h1:8QPSo24xgzWNtkMRYpgwk8wf3pnRAOlOFo/8dvXCk
 git.sr.ht/~rockorager/vaxis v0.16.0/go.mod h1:8kcT/3P7Lpm9P/akqPI69q823HFpVz2Lnb1TdTv5ijg=
 github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
-github.com/mattn/go-mastodon v0.0.13 h1:ZQaij7lw7N81KuqbYJeTMSfsO53GZETpi1mXcxsuYIQ=
-github.com/mattn/go-mastodon v0.0.13/go.mod h1:9ljK/rR6veDDzO3z2IdUYDBpATgi0cXotDacI3yK+jM=
+github.com/mattn/go-mastodon v0.0.14-0.20261118171431-65c27b5f38b0 h1:LSf9xSZdpgVBzGbaKxonjyrXk2IFD9z39hX2AQ3rFTg=
+github.com/mattn/go-mastodon v0.0.14-0.20261118171431-65c27b5f38b0/go.mod h1:9ljK/rR6veDDzO3z2IdUYDBpATgi0cXotDacI3yK+jM=
 github.com/rockorager/go-uucode v1.2.0 h1:xwUIndxE+z1PIrWALT7unu4L8x27qMsC/5X3aonJo6o=
 github.com/rockorager/go-uucode v1.2.0/go.mod h1:0BZXIGRvWIHt1ruBeViNGcuKyQ3+BRHQbgyXkqRCz38=
 github.com/tomnomnom/linkheader v0.0.0-20250811210735-e5fe3b51442e h1:tD38/4xg4nuQCASJ/JxcvCHNb46w0cdAaJfkzQOO1bA=
